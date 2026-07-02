@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f2f2f4">
+<title>無邊白板</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'PingFang TC', 'Segoe UI', sans-serif;
+    background: #f2f2f4;
+    overscroll-behavior: none;
+  }
+
+  /* ============ 畫布 ============ */
+  #viewport {
+    position: fixed;
+    inset: 0;
+    touch-action: none;
+    background-color: #f2f2f4;
+    background-image: radial-gradient(circle, #cfcfd4 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+    cursor: default;
+    overflow: hidden;
+  }
+  #viewport.tool-pen { cursor: crosshair; }
+  #viewport.tool-text { cursor: text; }
+
+  #world {
+    position: absolute;
+    left: 0; top: 0;
+    width: 0; height: 0;
+    transform-origin: 0 0;
+  }
+
+  #objLayer { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+
+  #inkLayer {
+    position: absolute;
+    left: 0; top: 0;
+    width: 1px; height: 1px;
+    overflow: visible;
+    pointer-events: none;
+  }
+  #inkLayer path { pointer-events: stroke; }
+
+  /* ============ 物件 ============ */
+  .obj { position: absolute; }
+  .obj .tc {
+    outline: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .obj-text .tc { min-width: 20px; max-width: 420px; line-height: 1.35; }
+
+  .obj-note {
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12);
+    padding: 14px;
+    overflow: hidden;
+  }
+  .obj-note .tc { width: 100%; height: 100%; font-size: 17px; line-height: 1.4; color: #3d3319; }
+
+  .obj-shape { display: block; }
+  .obj-shape svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+  .obj-image img {
+    display: block; width: 100%; height: 100%;
+    object-fit: cover; border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.16);
+    pointer-events: none;
+  }
+
+  .obj-table table {
+    border-collapse: collapse;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    border-radius: 8px;
+    overflow: hidden;
+    table-layout: fixed;
+    width: 100%;
+  }
+  .obj-table td {
+    border: 1px solid #d9d9de;
+    min-height: 38px;
+    height: 38px;
+    padding: 8px 10px;
+    font-size: 15px;
+    color: #222;
+    outline: none;
+    vertical-align: top;
+    pointer-events: none;
+  }
+  .obj-table.editing td { pointer-events: auto; cursor: text; }
+  .obj-table tr:first-child td { background: #f5f5f7; font-weight: 600; }
+
+  .obj.editing { cursor: text; }
+  .obj .tc[contenteditable="true"] { cursor: text; }
+
+  /* 選取框 */
+  #selBox {
+    position: absolute;
+    border: 1.5px solid #1e9de0;
+    border-radius: 4px;
+    pointer-events: none;
+    display: none;
+  }
+  #selHandle {
+    position: absolute;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #1e9de0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    pointer-events: auto;
+    cursor: nwse-resize;
+    display: none;
+  }
+
+  /* ============ 浮動 UI ============ */
+  .pill {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: 999px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.08);
+    padding: 6px;
+    z-index: 20;
+  }
+  .iconbtn {
+    width: 46px; height: 46px;
+    border: none;
+    background: transparent;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #1c1c1e;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 17px;
+  }
+  .iconbtn:active { background: rgba(0,0,0,0.08); }
+  .iconbtn.active { background: rgba(30,157,224,0.14); color: #1e9de0; }
+  .iconbtn svg { width: 24px; height: 24px; }
+  .iconbtn:disabled { opacity: 0.3; cursor: default; }
+
+  #backBtn { top: calc(14px + env(safe-area-inset-top)); left: 14px; }
+  #topRight { top: calc(14px + env(safe-area-inset-top)); right: 14px; }
+
+  #toolbar {
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(calc(-50% - 34px));
+  }
+  #noteBtnWrap {
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(calc(-50% - 34px));
+    margin-left: 0;
+  }
+  #noteBtn {
+    position: fixed;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    right: 18px;
+    width: 58px; height: 58px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.08);
+    display: flex; align-items: center; justify-content: center;
+    color: #1c1c1e;
+    cursor: pointer;
+    z-index: 20;
+  }
+  #noteBtn:active { background: rgba(235,235,238,0.95); }
+  #noteBtn svg { width: 26px; height: 26px; }
+
+  /* 縮放指示 */
+  #zoomCtl {
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    left: 14px;
+    padding: 4px;
+  }
+  #zoomCtl button { width: 34px; height: 34px; font-size: 20px; font-weight: 500; }
+  @media (max-width: 700px) {
+    #zoomCtl { bottom: calc(96px + env(safe-area-inset-bottom)); }
+  }
+  #zoomPct {
+    border: none; background: transparent;
+    font-size: 13px; font-weight: 600; color: #444;
+    min-width: 48px; cursor: pointer;
+  }
+
+  /* ============ 彈出面板 ============ */
+  .popup {
+    position: fixed;
+    bottom: calc(88px + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: 18px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.16);
+    padding: 14px;
+    z-index: 30;
+    display: none;
+  }
+  .popup.open { display: block; }
+  .popup .row { display: flex; gap: 10px; align-items: center; justify-content: center; }
+  .popup .row + .row { margin-top: 12px; }
+  .popup .label { font-size: 12px; color: #888; font-weight: 600; margin-bottom: 8px; text-align: center; }
+
+  .swatch {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 2.5px solid transparent;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12);
+  }
+  .swatch.sel { border-color: #1e9de0; }
+
+  .sizebtn {
+    border: none; background: #f0f0f2;
+    border-radius: 10px;
+    width: 44px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .sizebtn.sel { background: rgba(30,157,224,0.16); }
+  .sizebtn i { display: block; background: #333; border-radius: 99px; }
+
+  .choice {
+    border: none; background: #f0f0f2;
+    border-radius: 12px;
+    width: 56px; height: 56px;
+    display: flex; flex-direction: column; gap: 4px;
+    align-items: center; justify-content: center;
+    cursor: pointer;
+    color: #333;
+    font-size: 11px;
+  }
+  .choice:active { background: #e4e4e8; }
+  .choice svg { width: 26px; height: 26px; }
+
+  .menu-item {
+    display: flex; align-items: center; gap: 10px;
+    width: 200px;
+    padding: 11px 12px;
+    border: none; background: transparent;
+    border-radius: 10px;
+    font-size: 15px; color: #1c1c1e;
+    cursor: pointer;
+    text-align: left;
+  }
+  .menu-item:active { background: rgba(0,0,0,0.06); }
+  .menu-item.danger { color: #e0483e; }
+  .menu-item svg { width: 20px; height: 20px; flex: none; }
+  #moreMenu { left: auto; right: 14px; transform: none; top: calc(72px + env(safe-area-inset-top)); bottom: auto; padding: 6px; }
+
+  /* 選取氣泡 */
+  #bubble {
+    position: fixed;
+    display: none;
+    align-items: center;
+    gap: 2px;
+    background: rgba(30,30,32,0.92);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-radius: 12px;
+    padding: 4px;
+    z-index: 25;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+  }
+  #bubble button {
+    border: none; background: transparent;
+    color: #fff; font-size: 13px; font-weight: 500;
+    padding: 7px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+  }
+  #bubble button:active { background: rgba(255,255,255,0.14); }
+  #bubble .bsw {
+    width: 22px; height: 22px; border-radius: 50%;
+    padding: 0; margin: 0 3px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35);
+  }
+
+  /* ============ 介紹頁 ============ */
+  #intro {
+    position: fixed; inset: 0;
+    z-index: 100;
+    background: #1c1c1e;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  #intro.hidden { display: none; }
+  .intro-card {
+    max-width: 420px;
+    width: 100%;
+    display: flex; flex-direction: column;
+    height: 100%;
+    max-height: 820px;
+    padding: 24px 8px calc(12px + env(safe-area-inset-bottom));
+  }
+  .intro-icon {
+    width: 92px; height: 92px;
+    margin: 36px auto 44px;
+    border-radius: 22px;
+    background: #2c2c2e;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .intro-icon svg { width: 64px; height: 64px; }
+  .intro-title {
+    font-size: 27px; font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 40px;
+  }
+  .feature { display: flex; gap: 18px; margin-bottom: 30px; align-items: flex-start; }
+  .feature .fic {
+    flex: none;
+    width: 44px;
+    color: #35b6f0;
+    display: flex; justify-content: center;
+    padding-top: 2px;
+    font-weight: 700;
+    font-size: 17px;
+  }
+  .feature .fic svg { width: 34px; height: 34px; }
+  .feature h3 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .feature p { font-size: 16px; color: #98989e; line-height: 1.45; }
+  #introGo {
+    margin-top: auto;
+    border: none;
+    background: #35c8f5;
+    color: #003a4d;
+    font-size: 17px; font-weight: 600;
+    padding: 17px;
+    border-radius: 999px;
+    cursor: pointer;
+    width: 100%;
+  }
+  #introGo:active { filter: brightness(0.92); }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    top: calc(70px + env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: rgba(30,30,32,0.9);
+    color: #fff;
+    font-size: 14px;
+    padding: 9px 18px;
+    border-radius: 999px;
+    z-index: 90;
+    opacity: 0;
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  #fileInput { display: none; }
+</style>
+</head>
+<body>
+
+<div id="viewport">
+  <div id="world">
+    <div id="objLayer"></div>
+    <svg id="inkLayer" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="selBox"></div>
+    <div id="selHandle"></div>
+  </div>
+</div>
+
+<!-- 上方列 -->
+<div class="pill" id="backBtn">
+  <button class="iconbtn" id="btnBack" title="返回">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+  </button>
+</div>
+<div class="pill" id="topRight">
+  <button class="iconbtn" id="btnUndo" title="還原">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 6 4.5 10l4 4"/><path d="M4.5 10h9a5 5 0 0 1 0 10H10"/></svg>
+  </button>
+  <button class="iconbtn" id="btnShare" title="分享">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 6.5 12 3l4 3.5"/><path d="M6.5 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5"/></svg>
+  </button>
+  <button class="iconbtn" id="btnMore" title="更多">
+    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
+  </button>
+</div>
+
+<!-- 下方工具列 -->
+<div class="pill" id="toolbar">
+  <button class="iconbtn" id="toolPen" title="畫筆">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9.2"/><path d="M12 6.6 9.6 13h4.8L12 6.6z" fill="currentColor" stroke="none"/><path d="M10.4 13.6h3.2v2.2a1.6 1.6 0 0 1-3.2 0v-2.2z" fill="currentColor" stroke="none"/></svg>
+  </button>
+  <button class="iconbtn" id="toolText" title="文字">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.2" y="5.2" width="17.6" height="13.6" rx="3.4" stroke-dasharray="3.4 2.6"/><text x="12" y="16" text-anchor="middle" font-size="10.5" font-weight="600" fill="currentColor" stroke="none">字</text></svg>
+  </button>
+  <button class="iconbtn" id="toolShape" title="形狀">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="7.5" y="4.5" width="12" height="12" rx="3"/><circle cx="9" cy="15" r="4.8" fill="#f7f7f8"/><circle cx="9" cy="15" r="4.8"/></svg>
+  </button>
+  <button class="iconbtn" id="toolAttach" title="附件">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5 12.6 19a5 5 0 0 1-7.1-7.1l8-8a3.4 3.4 0 0 1 4.8 4.8l-7.8 7.8a1.8 1.8 0 0 1-2.5-2.5l7-7"/></svg>
+  </button>
+</div>
+<button id="noteBtn" title="新增便條">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5H7a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-4"/><path d="M17.8 3.6a2 2 0 0 1 2.8 2.8L13 14l-3.6.8L10.2 11l7.6-7.4z"/></svg>
+</button>
+
+<!-- 縮放 -->
+<div class="pill" id="zoomCtl">
+  <button class="iconbtn" id="zoomOut">−</button>
+  <button id="zoomPct" title="重設縮放">100%</button>
+  <button class="iconbtn" id="zoomIn">+</button>
+</div>
+
+<!-- 畫筆設定 -->
+<div class="popup" id="penPopup">
+  <div class="label">畫筆</div>
+  <div class="row" id="penColors"></div>
+  <div class="row">
+    <button class="sizebtn" data-size="3"><i style="width:16px;height:3px"></i></button>
+    <button class="sizebtn" data-size="6"><i style="width:16px;height:6px"></i></button>
+    <button class="sizebtn" data-size="11"><i style="width:16px;height:10px"></i></button>
+    <button class="sizebtn" id="eraserBtn" title="橡皮擦">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#333" stroke-width="2" stroke-linejoin="round"><path d="m5 15 8-8a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L13.5 18.5H9L5 14.5z"/><path d="M4 20h16" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- 形狀選擇 -->
+<div class="popup" id="shapePopup">
+  <div class="label">形狀</div>
+  <div class="row">
+    <button class="choice" data-shape="rect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12"/></svg>矩形</button>
+    <button class="choice" data-shape="roundrect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="4"/></svg>圓角</button>
+    <button class="choice" data-shape="ellipse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="8" ry="6"/></svg>橢圓</button>
+  </div>
+  <div class="row">
+    <button class="choice" data-shape="triangle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 5 20 19H4z"/></svg>三角形</button>
+    <button class="choice" data-shape="star"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 4 2.4 5.2 5.6.6-4.2 3.8 1.2 5.6-5-2.9-5 2.9 1.2-5.6L4 9.8l5.6-.6z"/></svg>星形</button>
+    <button class="choice" data-shape="line"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 19 19 5"/></svg>直線</button>
+  </div>
+</div>
+
+<!-- 附件選擇 -->
+<div class="popup" id="attachPopup">
+  <div class="label">附加物件</div>
+  <div class="row">
+    <button class="choice" id="attachPhoto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="3"/><circle cx="9" cy="10" r="1.7" fill="currentColor" stroke="none"/><path d="m6 18 4.5-4.5 3 3 2.5-2.5 3.5 3.5"/></svg>照片</button>
+    <button class="choice" id="attachTable"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 10.5h16M4 15h16M10 5v14M15.5 5v14" stroke-width="1.6"/></svg>表格</button>
+  </div>
+</div>
+
+<!-- 更多選單 -->
+<div class="popup" id="moreMenu">
+  <button class="menu-item" id="mRedo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15.5 6 4 4-4 4"/><path d="M19.5 10h-9a5 5 0 0 0 0 10H14"/></svg>重做
+  </button>
+  <button class="menu-item" id="mExport">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="m6 18 4.5-4.5 3 3 2.5-2.5 3.5 3.5"/></svg>匯出圖片
+  </button>
+  <button class="menu-item" id="mIntro">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.6" r="0.4" fill="currentColor"/></svg>功能介紹
+  </button>
+  <button class="menu-item danger" id="mClear">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v2M6.5 7l1 12a2 2 0 0 0 2 1.8h5a2 2 0 0 0 2-1.8l1-12"/></svg>清除畫布
+  </button>
+</div>
+
+<!-- 選取氣泡 -->
+<div id="bubble"></div>
+
+<input type="file" id="fileInput" accept="image/*">
+
+<!-- 介紹頁 -->
+<div id="intro">
+  <div class="intro-card">
+    <div class="intro-icon">
+      <svg viewBox="0 0 64 64">
+        <circle cx="24" cy="38" r="17" fill="#e8833a"/>
+        <rect x="22" y="10" width="34" height="34" rx="9" fill="#35b6f0"/>
+        <path d="M28 30c4-8 7 6 11-2s6 6 11-1" fill="none" stroke="#0b2530" stroke-width="3.4" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1 class="intro-title">歡迎使用「無邊白板」</h1>
+    <div class="feature">
+      <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c4-1 2.5-4.5 5-7L16.5 5.5a2.1 2.1 0 0 1 3 3L12 16c-2.5 2.5-6 1-8 4z"/></svg></div>
+      <div><h3>自由書寫繪圖</h3><p>使用畫筆在無限延伸的畫布上書寫、塗鴉和做筆記。</p></div>
+    </div>
+    <div class="feature">
+      <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="3"/><path d="M7.5 9h9M7.5 13h9M7.5 17h5" stroke-linecap="round"/></svg></div>
+      <div><h3>便條與表格</h3><p>加入便條紙整理想法，或用表格將內容排列成橫列和直欄。</p></div>
+    </div>
+    <div class="feature">
+      <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="8" y="4" width="12" height="12" rx="3"/><circle cx="9" cy="15" r="5"/></svg></div>
+      <div><h3>形狀與照片</h3><p>拖移形狀、照片和其他物件，隨意移動、縮放與排版。</p></div>
+    </div>
+    <div class="feature">
+      <div class="fic">格式</div>
+      <div><h3>設定樣式</h3><p>選擇填充顏色、調整文字大小，打造你自己的白板。</p></div>
+    </div>
+    <button id="introGo">繼續</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ================= 狀態 ================= */
+const $ = id => document.getElementById(id);
+const viewport = $('viewport'), world = $('world'),
+      objLayer = $('objLayer'), inkLayer = $('inkLayer'),
+      selBox = $('selBox'), selHandle = $('selHandle'), bubble = $('bubble');
+
+let model = [];                       // 所有物件
+let view = { x: innerWidth / 2, y: innerHeight / 2, z: 1 };
+let tool = 'select';                  // select | pen | text
+let penColor = '#1c1c1e', penSize = 3, eraser = false;
+let selectedId = null;
+let idSeq = 1;
+let undoStack = [], redoStack = [];
+const els = new Map();                // id -> DOM 元素
+const imgCache = new Map();           // 匯出用
+
+const PEN_COLORS = ['#1c1c1e', '#e0483e', '#f0932b', '#f5c518', '#27ae60', '#1e9de0', '#8e44ad', '#ffffff'];
+const FILL_COLORS = ['#8ED1FC', '#FFB3B3', '#FFE066', '#B2F2BB', '#D0BFFF'];
+const NOTE_COLORS = ['#FFE066', '#FFD6A5', '#FFADAD', '#CAFFBF', '#A0C4FF'];
+
+/* ================= 工具函式 ================= */
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const s2w = (sx, sy) => ({ x: (sx - view.x) / view.z, y: (sy - view.y) / view.z });
+const w2s = (wx, wy) => ({ x: wx * view.z + view.x, y: wy * view.z + view.y });
+const centerWorld = () => s2w(innerWidth / 2, innerHeight / 2);
+const getObj = id => model.find(o => o.id === id);
+const copy = o => JSON.parse(JSON.stringify(o));
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* ================= 檢視 ================= */
+function applyView() {
+  world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`;
+  viewport.style.backgroundSize = `${24 * view.z}px ${24 * view.z}px`;
+  viewport.style.backgroundPosition = `${view.x}px ${view.y}px`;
+  $('zoomPct').textContent = Math.round(view.z * 100) + '%';
+  updateSelUI();
+}
+
+function zoomAt(sx, sy, f) {
+  const z2 = clamp(view.z * f, 0.15, 5);
+  view.x = sx - (sx - view.x) * (z2 / view.z);
+  view.y = sy - (sy - view.y) * (z2 / view.z);
+  view.z = z2;
+  applyView();
+  saveSoon();
+}
+
+/* ================= 還原 / 重做 ================= */
+function snapshot() { return JSON.stringify(model); }
+function pushUndo(pre) {
+  undoStack.push(pre !== undefined ? pre : snapshot());
+  if (undoStack.length > 60) undoStack.shift();
+  redoStack.length = 0;
+  updateUndoBtn();
+}
+function commitUndo(pre) {
+  if (pre !== snapshot()) { undoStack.push(pre); if (undoStack.length > 60) undoStack.shift(); redoStack.length = 0; saveSoon(); }
+  updateUndoBtn();
+}
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(snapshot());
+  model = JSON.parse(undoStack.pop());
+  select(null); render(); saveSoon(); updateUndoBtn();
+}
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(snapshot());
+  model = JSON.parse(redoStack.pop());
+  select(null); render(); saveSoon(); updateUndoBtn();
+}
+function updateUndoBtn() { $('btnUndo').disabled = !undoStack.length; }
+
+/* ================= 儲存 ================= */
+let saveTimer = null;
+function saveSoon() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem('freeform-board', JSON.stringify({ model, view }));
+    } catch (e) { toast('儲存空間已滿，內容過大'); }
+  }, 300);
+}
+function load() {
+  try {
+    const raw = localStorage.getItem('freeform-board');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (Array.isArray(data.model)) model = data.model;
+    if (data.view && typeof data.view.z === 'number') view = data.view;
+    idSeq = model.reduce((m, o) => Math.max(m, o.id), 0) + 1;
+  } catch (e) { /* 忽略壞資料 */ }
+}
+
+/* ================= 渲染 ================= */
+function render() {
+  objLayer.innerHTML = '';
+  inkLayer.innerHTML = '';
+  els.clear();
+  for (const obj of model) els.set(obj.id, createEl(obj));
+  updateSelUI();
+}
+
+function strokePath(points) {
+  if (points.length < 2) {
+    const [x, y] = points[0];
+    return `M${x} ${y} L${x + 0.01} ${y}`;
+  }
+  let d = `M${points[0][0]} ${points[0][1]}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const mx = (points[i][0] + points[i + 1][0]) / 2;
+    const my = (points[i][1] + points[i + 1][1]) / 2;
+    d += ` Q${points[i][0]} ${points[i][1]} ${mx} ${my}`;
+  }
+  const last = points[points.length - 1];
+  d += ` L${last[0]} ${last[1]}`;
+  return d;
+}
+
+function shapeSVG(obj) {
+  const { w, h } = obj;
+  const f = obj.fill, s = 'rgba(0,0,0,0.14)';
+  switch (obj.shape) {
+    case 'rect':      return `<rect x="0" y="0" width="${w}" height="${h}" fill="${f}" stroke="${s}"/>`;
+    case 'roundrect': return `<rect x="0" y="0" width="${w}" height="${h}" rx="${Math.min(w, h) * 0.16}" fill="${f}" stroke="${s}"/>`;
+    case 'ellipse':   return `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${w / 2}" ry="${h / 2}" fill="${f}" stroke="${s}"/>`;
+    case 'triangle':  return `<path d="M${w / 2} 0 L${w} ${h} L0 ${h} Z" fill="${f}" stroke="${s}"/>`;
+    case 'star':      return `<path d="${starPath(w, h)}" fill="${f}" stroke="${s}"/>`;
+    case 'line':      return `<line x1="0" y1="${h}" x2="${w}" y2="0" stroke="${f}" stroke-width="5" stroke-linecap="round"/>`;
+  }
+  return '';
+}
+function starPath(w, h) {
+  const cx = w / 2, cy = h / 2, R = Math.min(w, h) / 2, r = R * 0.42;
+  let d = '';
+  for (let i = 0; i < 10; i++) {
+    const rad = (i % 2 === 0 ? R : r);
+    const a = -Math.PI / 2 + i * Math.PI / 5;
+    d += (i ? 'L' : 'M') + (cx + rad * Math.cos(a) * (w / Math.min(w, h))).toFixed(1) + ' ' + (cy + rad * Math.sin(a) * (h / Math.min(w, h))).toFixed(1) + ' ';
+  }
+  return d + 'Z';
+}
+
+function createEl(obj) {
+  if (obj.type === 'stroke') {
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', strokePath(obj.points));
+    p.setAttribute('fill', 'none');
+    p.setAttribute('stroke', obj.color);
+    p.setAttribute('stroke-width', obj.size);
+    p.setAttribute('stroke-linecap', 'round');
+    p.setAttribute('stroke-linejoin', 'round');
+    p.classList.add('obj');
+    p.dataset.id = obj.id;
+    inkLayer.appendChild(p);
+    return p;
+  }
+
+  const el = document.createElement('div');
+  el.className = 'obj obj-' + obj.type;
+  el.dataset.id = obj.id;
+  el.style.left = obj.x + 'px';
+  el.style.top = obj.y + 'px';
+
+  if (obj.type === 'text') {
+    const tc = document.createElement('div');
+    tc.className = 'tc';
+    tc.style.fontSize = obj.size + 'px';
+    tc.style.color = obj.color;
+    tc.textContent = obj.text;
+    el.appendChild(tc);
+  } else if (obj.type === 'note') {
+    el.style.width = obj.w + 'px';
+    el.style.height = obj.h + 'px';
+    el.style.background = obj.fill;
+    const tc = document.createElement('div');
+    tc.className = 'tc';
+    tc.textContent = obj.text;
+    el.appendChild(tc);
+  } else if (obj.type === 'shape') {
+    el.style.width = obj.w + 'px';
+    el.style.height = obj.h + 'px';
+    el.innerHTML = `<svg viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none">${shapeSVG(obj)}</svg>`;
+  } else if (obj.type === 'image') {
+    el.style.width = obj.w + 'px';
+    el.style.height = obj.h + 'px';
+    const img = document.createElement('img');
+    img.src = obj.src;
+    img.draggable = false;
+    el.appendChild(img);
+  } else if (obj.type === 'table') {
+    el.style.width = obj.w + 'px';
+    const tbl = document.createElement('table');
+    obj.cells.forEach((row, r) => {
+      const tr = document.createElement('tr');
+      row.forEach((cell, c) => {
+        const td = document.createElement('td');
+        td.textContent = cell;
+        td.dataset.r = r; td.dataset.c = c;
+        td.contentEditable = 'true';
+        tr.appendChild(td);
+      });
+      tbl.appendChild(tr);
+    });
+    el.appendChild(tbl);
+  }
+
+  objLayer.appendChild(el);
+  return el;
+}
+
+/* ================= 選取 ================= */
+function select(id) {
+  selectedId = id;
+  updateSelUI();
+}
+
+function objBBox(obj) {
+  if (obj.type === 'stroke') {
+    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+    for (const [x, y] of obj.points) {
+      x1 = Math.min(x1, x); y1 = Math.min(y1, y);
+      x2 = Math.max(x2, x); y2 = Math.max(y2, y);
+    }
+    const p = obj.size / 2 + 2;
+    return { x: x1 - p, y: y1 - p, w: x2 - x1 + p * 2, h: y2 - y1 + p * 2 };
+  }
+  const el = els.get(obj.id);
+  const w = obj.w !== undefined ? obj.w : (el ? el.offsetWidth : 100);
+  const h = obj.h !== undefined ? obj.h : (el ? el.offsetHeight : 40);
+  return { x: obj.x, y: obj.y, w, h };
+}
+
+function updateSelUI() {
+  const obj = selectedId && getObj(selectedId);
+  if (!obj) {
+    selBox.style.display = selHandle.style.display = 'none';
+    bubble.style.display = 'none';
+    return;
+  }
+  const b = objBBox(obj);
+  selBox.style.display = 'block';
+  selBox.style.left = b.x + 'px';
+  selBox.style.top = b.y + 'px';
+  selBox.style.width = b.w + 'px';
+  selBox.style.height = b.h + 'px';
+  selBox.style.borderWidth = (1.5 / view.z) + 'px';
+
+  const resizable = ['shape', 'note', 'image', 'table'].includes(obj.type);
+  if (resizable) {
+    selHandle.style.display = 'block';
+    const hs = 16 / view.z;
+    selHandle.style.width = selHandle.style.height = hs + 'px';
+    selHandle.style.borderWidth = (2 / view.z) + 'px';
+    selHandle.style.left = (b.x + b.w - hs / 2) + 'px';
+    selHandle.style.top = (b.y + b.h - hs / 2) + 'px';
+  } else {
+    selHandle.style.display = 'none';
+  }
+
+  buildBubble(obj);
+  const top = w2s(b.x + b.w / 2, b.y);
+  bubble.style.display = 'flex';
+  bubble.style.left = '0px'; bubble.style.top = '0px';
+  const bw = bubble.offsetWidth, bh = bubble.offsetHeight;
+  bubble.style.left = clamp(top.x - bw / 2, 8, innerWidth - bw - 8) + 'px';
+  bubble.style.top = clamp(top.y - bh - 12, 8, innerHeight - bh - 8) + 'px';
+}
+
+function buildBubble(obj) {
+  bubble.innerHTML = '';
+  const btn = (label, fn) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.addEventListener('pointerdown', e => e.stopPropagation());
+    b.addEventListener('click', fn);
+    bubble.appendChild(b);
+    return b;
+  };
+  if (obj.type === 'text') {
+    btn('A−', () => { pushUndo(); obj.size = Math.max(11, obj.size - 3); render(); saveSoon(); });
+    btn('A＋', () => { pushUndo(); obj.size = Math.min(96, obj.size + 3); render(); saveSoon(); });
+  }
+  if (obj.type === 'shape' || obj.type === 'note') {
+    const colors = obj.type === 'shape' ? FILL_COLORS : NOTE_COLORS;
+    for (const c of colors) {
+      const b = document.createElement('button');
+      b.className = 'bsw';
+      b.style.background = c;
+      b.addEventListener('pointerdown', e => e.stopPropagation());
+      b.addEventListener('click', () => { pushUndo(); obj.fill = c; render(); saveSoon(); });
+      bubble.appendChild(b);
+    }
+  }
+  btn('複製', () => {
+    pushUndo();
+    const dup = copy(obj);
+    dup.id = idSeq++;
+    if (dup.type === 'stroke') dup.points = dup.points.map(([x, y]) => [x + 24, y + 24]);
+    else { dup.x += 24; dup.y += 24; }
+    model.push(dup);
+    render(); select(dup.id); saveSoon();
+  });
+  btn('刪除', () => {
+    pushUndo();
+    model = model.filter(o => o.id !== obj.id);
+    select(null); render(); saveSoon();
+  });
+}
+
+/* ================= 編輯文字 ================= */
+let editingId = null, editPre = null;
+
+function enterEdit(obj) {
+  const el = els.get(obj.id);
+  if (!el) return;
+  editingId = obj.id;
+  editPre = snapshot();
+  el.classList.add('editing');
+  if (obj.type === 'text' || obj.type === 'note') {
+    const tc = el.querySelector('.tc');
+    tc.contentEditable = 'true';
+    tc.focus();
+    // 游標移至最後
+    const r = document.createRange();
+    r.selectNodeContents(tc);
+    r.collapse(false);
+    const sel = getSelection();
+    sel.removeAllRanges(); sel.addRange(r);
+  } else if (obj.type === 'table') {
+    const td = el.querySelector('td');
+    if (td) td.focus();
+  }
+  select(null);
+}
+
+function exitEdit() {
+  if (editingId === null) return;
+  const obj = getObj(editingId);
+  const el = els.get(editingId);
+  const pre = editPre;
+  editingId = null; editPre = null;
+  if (!obj || !el) return;
+  el.classList.remove('editing');
+  if (obj.type === 'text' || obj.type === 'note') {
+    const tc = el.querySelector('.tc');
+    tc.contentEditable = 'false';
+    obj.text = tc.innerText.replace(/\n$/, '');
+    if (obj.type === 'text' && !obj.text.trim()) {
+      model = model.filter(o => o.id !== obj.id);
+    }
+  } else if (obj.type === 'table') {
+    el.querySelectorAll('td').forEach(td => {
+      obj.cells[+td.dataset.r][+td.dataset.c] = td.innerText.replace(/\n$/, '');
+    });
+  }
+  commitUndo(pre);
+  render();
+}
+
+/* ================= 新增物件 ================= */
+function addObj(obj, sel = true) {
+  pushUndo();
+  obj.id = idSeq++;
+  model.push(obj);
+  render();
+  if (sel) select(obj.id);
+  saveSoon();
+  return obj;
+}
+
+function addNote() {
+  const c = centerWorld();
+  const obj = addObj({ type: 'note', x: c.x - 100, y: c.y - 100, w: 200, h: 200, fill: NOTE_COLORS[0], text: '' }, false);
+  enterEdit(obj);
+}
+function addShape(kind) {
+  const c = centerWorld();
+  addObj({ type: 'shape', shape: kind, x: c.x - 90, y: c.y - 70, w: 180, h: 140, fill: FILL_COLORS[0] });
+}
+function addTable() {
+  const c = centerWorld();
+  addObj({ type: 'table', x: c.x - 180, y: c.y - 60, w: 360, cells: [['', '', ''], ['', '', ''], ['', '', '']] });
+}
+function addText(wx, wy) {
+  // 建立與輸入文字合併為單一還原步驟
+  const pre = snapshot();
+  const obj = { id: idSeq++, type: 'text', x: wx, y: wy, text: '', size: 18, color: '#1c1c1e' };
+  model.push(obj);
+  render();
+  enterEdit(obj);
+  editPre = pre;
+}
+
+/* ================= 指標事件 ================= */
+const pointers = new Map();
+let action = null;   // {kind:'pan'|'draw'|'drag'|'resize'|'erase', ...}
+let pinch = null;
+
+viewport.addEventListener('pointerdown', onDown);
+viewport.addEventListener('pointermove', onMove);
+viewport.addEventListener('pointerup', onUp);
+viewport.addEventListener('pointercancel', onUp);
+selHandle.addEventListener('pointerdown', onHandleDown);
+
+function closeAllPopups() {
+  document.querySelectorAll('.popup.open').forEach(p => p.classList.remove('open'));
+}
+
+function onDown(e) {
+  // 編輯中的物件：讓瀏覽器處理文字輸入
+  if (e.target.closest('.editing') || e.target.isContentEditable) return;
+
+  closeAllPopups();
+  if (editingId !== null) exitEdit();
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+
+  e.preventDefault();
+  viewport.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (pointers.size === 2) {
+    // 進入雙指縮放：取消進行中的動作
+    if (action && action.kind === 'draw' && action.pathEl) action.pathEl.remove();
+    action = null;
+    pinch = null;
+    return;
+  }
+  if (pointers.size > 2) return;
+
+  const w = s2w(e.clientX, e.clientY);
+
+  if (tool === 'pen') {
+    if (eraser) {
+      action = { kind: 'erase', pre: snapshot(), erased: false };
+      eraseAt(w.x, w.y);
+    } else {
+      const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pathEl.setAttribute('fill', 'none');
+      pathEl.setAttribute('stroke', penColor);
+      pathEl.setAttribute('stroke-width', penSize);
+      pathEl.setAttribute('stroke-linecap', 'round');
+      pathEl.setAttribute('stroke-linejoin', 'round');
+      inkLayer.appendChild(pathEl);
+      action = { kind: 'draw', points: [[w.x, w.y]], pathEl };
+      pathEl.setAttribute('d', strokePath(action.points));
+    }
+    return;
+  }
+
+  if (tool === 'text') {
+    addText(w.x, w.y);
+    setTool('select');
+    return;
+  }
+
+  // 選取模式
+  const objEl = e.target.closest('.obj');
+  if (objEl) {
+    const id = +objEl.dataset.id;
+    const wasSelected = (selectedId === id);
+    select(id);
+    action = {
+      kind: 'drag', id, wasSelected, moved: false,
+      startX: e.clientX, startY: e.clientY,
+      pre: snapshot(), dx: 0, dy: 0
+    };
+  } else {
+    select(null);
+    action = { kind: 'pan', startX: e.clientX, startY: e.clientY, vx: view.x, vy: view.y };
+  }
+}
+
+function onHandleDown(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const obj = selectedId && getObj(selectedId);
+  if (!obj) return;
+  viewport.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  action = {
+    kind: 'resize', id: obj.id, pre: snapshot(),
+    startX: e.clientX, startY: e.clientY,
+    w0: obj.w, h0: obj.h !== undefined ? obj.h : 0, moved: false
+  };
+}
+
+function onMove(e) {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (pointers.size === 2) { pinchUpdate(); return; }
+  if (!action) return;
+
+  const w = s2w(e.clientX, e.clientY);
+
+  if (action.kind === 'pan') {
+    view.x = action.vx + (e.clientX - action.startX);
+    view.y = action.vy + (e.clientY - action.startY);
+    applyView();
+    saveSoon();
+  } else if (action.kind === 'draw') {
+    const last = action.points[action.points.length - 1];
+    if (Math.hypot(w.x - last[0], w.y - last[1]) > 1.2 / view.z) {
+      action.points.push([w.x, w.y]);
+      action.pathEl.setAttribute('d', strokePath(action.points));
+    }
+  } else if (action.kind === 'erase') {
+    eraseAt(w.x, w.y);
+  } else if (action.kind === 'drag') {
+    const dx = (e.clientX - action.startX) / view.z;
+    const dy = (e.clientY - action.startY) / view.z;
+    if (!action.moved && Math.hypot(dx, dy) * view.z > 4) action.moved = true;
+    if (action.moved) {
+      action.dx = dx; action.dy = dy;
+      const el = els.get(action.id);
+      if (el) {
+        if (el instanceof SVGElement) el.setAttribute('transform', `translate(${dx} ${dy})`);
+        else el.style.translate = `${dx}px ${dy}px`;
+      }
+      selBox.style.translate = `${dx}px ${dy}px`;
+      selHandle.style.translate = `${dx}px ${dy}px`;
+      bubble.style.display = 'none';
+    }
+  } else if (action.kind === 'resize') {
+    const obj = getObj(action.id);
+    if (!obj) return;
+    action.moved = true;
+    const dw = (e.clientX - action.startX) / view.z;
+    const dh = (e.clientY - action.startY) / view.z;
+    obj.w = Math.max(48, action.w0 + dw);
+    if (obj.h !== undefined) obj.h = Math.max(40, action.h0 + dh);
+    const el = els.get(obj.id);
+    if (el) {
+      el.style.width = obj.w + 'px';
+      if (obj.h !== undefined) el.style.height = obj.h + 'px';
+      if (obj.type === 'shape') el.innerHTML = `<svg viewBox="0 0 ${obj.w} ${obj.h}" preserveAspectRatio="none">${shapeSVG(obj)}</svg>`;
+    }
+    updateSelUI();
+  }
+}
+
+function onUp(e) {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (pointers.size > 0) return;
+
+  if (!action) return;
+  const a = action;
+  action = null;
+
+  if (a.kind === 'draw') {
+    a.pathEl.remove();
+    if (a.points.length >= 2) {
+      pushUndo();
+      model.push({ id: idSeq++, type: 'stroke', points: a.points.map(([x, y]) => [+x.toFixed(2), +y.toFixed(2)]), color: penColor, size: penSize });
+      render(); saveSoon();
+    }
+  } else if (a.kind === 'erase') {
+    if (a.erased) commitUndo(a.pre);
+  } else if (a.kind === 'drag') {
+    const obj = getObj(a.id);
+    if (obj && a.moved) {
+      if (obj.type === 'stroke') obj.points = obj.points.map(([x, y]) => [x + a.dx, y + a.dy]);
+      else { obj.x += a.dx; obj.y += a.dy; }
+      commitUndo(a.pre);
+      render(); select(a.id);
+    } else if (obj && a.wasSelected && !a.moved) {
+      // 再點一下已選取的物件 → 進入編輯
+      if (['text', 'note', 'table'].includes(obj.type)) enterEdit(obj);
+    }
+    selBox.style.translate = selHandle.style.translate = '';
+  } else if (a.kind === 'resize') {
+    if (a.moved) { commitUndo(a.pre); render(); select(a.id); }
+  }
+}
+
+function pinchUpdate() {
+  const pts = [...pointers.values()];
+  if (pts.length < 2) return;
+  const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+  if (!pinch) { pinch = { d, view: { ...view }, mid }; return; }
+  const z = clamp(pinch.view.z * (d / pinch.d), 0.15, 5);
+  const wx = (pinch.mid.x - pinch.view.x) / pinch.view.z;
+  const wy = (pinch.mid.y - pinch.view.y) / pinch.view.z;
+  view.z = z;
+  view.x = mid.x - wx * z;
+  view.y = mid.y - wy * z;
+  applyView();
+  saveSoon();
+}
+
+function eraseAt(wx, wy) {
+  const r = 10 / view.z;
+  const hit = [];
+  for (const obj of model) {
+    if (obj.type !== 'stroke') continue;
+    const tol = obj.size / 2 + r;
+    for (let i = 0; i < obj.points.length - 1; i++) {
+      if (distSeg(wx, wy, obj.points[i], obj.points[i + 1]) < tol) { hit.push(obj.id); break; }
+    }
+    if (obj.points.length === 1) {
+      const [x, y] = obj.points[0];
+      if (Math.hypot(wx - x, wy - y) < tol) hit.push(obj.id);
+    }
+  }
+  if (hit.length) {
+    if (action) action.erased = true;
+    model = model.filter(o => !hit.includes(o.id));
+    render();
+  }
+}
+function distSeg(px, py, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  let t = len2 ? ((px - a[0]) * dx + (py - a[1]) * dy) / len2 : 0;
+  t = clamp(t, 0, 1);
+  return Math.hypot(px - (a[0] + t * dx), py - (a[1] + t * dy));
+}
+
+/* 滾輪：平移 / Ctrl+滾輪：縮放 */
+viewport.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) {
+    zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.01));
+  } else {
+    view.x -= e.deltaX;
+    view.y -= e.deltaY;
+    applyView();
+    saveSoon();
+  }
+}, { passive: false });
+
+/* ================= 工具切換 ================= */
+function setTool(t) {
+  tool = t;
+  viewport.className = 'tool-' + t;
+  $('toolPen').classList.toggle('active', t === 'pen');
+  $('toolText').classList.toggle('active', t === 'text');
+  if (t !== 'pen') $('penPopup').classList.remove('open');
+}
+
+$('toolPen').addEventListener('click', () => {
+  if (tool === 'pen') {
+    $('penPopup').classList.toggle('open');
+  } else {
+    closeAllPopups();
+    setTool('pen');
+    $('penPopup').classList.add('open');
+  }
+});
+$('toolText').addEventListener('click', () => {
+  closeAllPopups();
+  setTool(tool === 'text' ? 'select' : 'text');
+  if (tool === 'text') toast('點一下畫布輸入文字');
+});
+$('toolShape').addEventListener('click', () => {
+  setTool('select');
+  const p = $('shapePopup');
+  const open = p.classList.contains('open');
+  closeAllPopups();
+  if (!open) p.classList.add('open');
+});
+$('toolAttach').addEventListener('click', () => {
+  setTool('select');
+  const p = $('attachPopup');
+  const open = p.classList.contains('open');
+  closeAllPopups();
+  if (!open) p.classList.add('open');
+});
+$('noteBtn').addEventListener('click', () => { closeAllPopups(); setTool('select'); addNote(); });
+
+/* 畫筆設定 */
+const penColorsEl = $('penColors');
+for (const c of PEN_COLORS) {
+  const b = document.createElement('button');
+  b.className = 'swatch' + (c === penColor ? ' sel' : '');
+  b.style.background = c;
+  b.addEventListener('click', () => {
+    penColor = c; eraser = false;
+    penColorsEl.querySelectorAll('.swatch').forEach(s => s.classList.toggle('sel', s === b));
+    $('eraserBtn').classList.remove('sel');
+  });
+  penColorsEl.appendChild(b);
+}
+document.querySelectorAll('.sizebtn[data-size]').forEach(b => {
+  if (+b.dataset.size === penSize) b.classList.add('sel');
+  b.addEventListener('click', () => {
+    penSize = +b.dataset.size; eraser = false;
+    document.querySelectorAll('.sizebtn').forEach(s => s.classList.toggle('sel', s === b));
+    $('eraserBtn').classList.remove('sel');
+  });
+});
+$('eraserBtn').addEventListener('click', () => {
+  eraser = !eraser;
+  $('eraserBtn').classList.toggle('sel', eraser);
+  if (eraser) document.querySelectorAll('.sizebtn[data-size]').forEach(s => s.classList.remove('sel'));
+});
+
+/* 形狀 / 附件 */
+document.querySelectorAll('#shapePopup .choice').forEach(b => {
+  b.addEventListener('click', () => { closeAllPopups(); addShape(b.dataset.shape); });
+});
+$('attachPhoto').addEventListener('click', () => { closeAllPopups(); $('fileInput').click(); });
+$('attachTable').addEventListener('click', () => { closeAllPopups(); addTable(); });
+
+$('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const maxW = 320;
+      const w = Math.min(maxW, img.naturalWidth);
+      const h = w * img.naturalHeight / img.naturalWidth;
+      const c = centerWorld();
+      addObj({ type: 'image', x: c.x - w / 2, y: c.y - h / 2, w, h, src: reader.result });
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+/* ================= 上方列 ================= */
+$('btnBack').addEventListener('click', () => toast('白板已自動儲存 ✓'));
+$('btnUndo').addEventListener('click', undo);
+$('btnMore').addEventListener('click', () => {
+  const p = $('moreMenu');
+  const open = p.classList.contains('open');
+  closeAllPopups();
+  if (!open) p.classList.add('open');
+});
+$('mRedo').addEventListener('click', () => { closeAllPopups(); redo(); });
+$('mExport').addEventListener('click', () => { closeAllPopups(); exportPNG(); });
+$('mIntro').addEventListener('click', () => { closeAllPopups(); $('intro').classList.remove('hidden'); });
+$('mClear').addEventListener('click', () => {
+  closeAllPopups();
+  if (!model.length) return;
+  if (confirm('確定要清除整個畫布嗎？')) {
+    pushUndo();
+    model = [];
+    select(null); render(); saveSoon();
+  }
+});
+$('btnShare').addEventListener('click', exportPNG);
+
+/* 縮放控制 */
+$('zoomIn').addEventListener('click', () => zoomAt(innerWidth / 2, innerHeight / 2, 1.25));
+$('zoomOut').addEventListener('click', () => zoomAt(innerWidth / 2, innerHeight / 2, 0.8));
+$('zoomPct').addEventListener('click', () => {
+  view = { x: innerWidth / 2, y: innerHeight / 2, z: 1 };
+  applyView(); saveSoon();
+});
+
+/* 鍵盤 */
+document.addEventListener('keydown', e => {
+  if (e.target.isContentEditable) return;
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    e.shiftKey ? redo() : undo();
+  } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+    e.preventDefault();
+    pushUndo();
+    model = model.filter(o => o.id !== selectedId);
+    select(null); render(); saveSoon();
+  } else if (e.key === 'Escape') {
+    setTool('select'); select(null); closeAllPopups();
+  }
+});
+
+/* 文字編輯 blur → 提交 */
+document.addEventListener('focusout', e => {
+  if (editingId === null) return;
+  const el = els.get(editingId);
+  if (el && el.contains(e.target)) {
+    // 若焦點仍在同一物件內（表格換格），不提交
+    setTimeout(() => {
+      if (editingId !== null) {
+        const cur = els.get(editingId);
+        if (!cur || !cur.contains(document.activeElement)) exitEdit();
+      }
+    }, 0);
+  }
+});
+
+/* ================= 匯出 PNG ================= */
+async function exportPNG() {
+  if (!model.length) { toast('畫布是空的'); return; }
+
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  for (const obj of model) {
+    const b = objBBox(obj);
+    x1 = Math.min(x1, b.x); y1 = Math.min(y1, b.y);
+    x2 = Math.max(x2, b.x + b.w); y2 = Math.max(y2, b.y + b.h);
+  }
+  const pad = 48, scale = 2;
+  const W = (x2 - x1 + pad * 2), H = (y2 - y1 + pad * 2);
+  const cv = document.createElement('canvas');
+  cv.width = W * scale; cv.height = H * scale;
+  const ctx = cv.getContext('2d');
+  ctx.scale(scale, scale);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.translate(pad - x1, pad - y1);
+
+  for (const obj of model) {
+    if (obj.type === 'stroke') {
+      ctx.strokeStyle = obj.color;
+      ctx.lineWidth = obj.size;
+      ctx.lineCap = ctx.lineJoin = 'round';
+      ctx.stroke(new Path2D(strokePath(obj.points)));
+    } else if (obj.type === 'shape') {
+      drawShape(ctx, obj);
+    } else if (obj.type === 'note') {
+      ctx.fillStyle = obj.fill;
+      roundRect(ctx, obj.x, obj.y, obj.w, obj.h, 8);
+      ctx.fill();
+      drawText(ctx, obj.text, obj.x + 14, obj.y + 14, obj.w - 28, 17, '#3d3319');
+    } else if (obj.type === 'text') {
+      const el = els.get(obj.id);
+      const w = el ? el.offsetWidth : 300;
+      drawText(ctx, obj.text, obj.x, obj.y, Math.max(w, 40), obj.size, obj.color);
+    } else if (obj.type === 'image') {
+      const img = await loadImg(obj);
+      if (img) ctx.drawImage(img, obj.x, obj.y, obj.w, obj.h);
+    } else if (obj.type === 'table') {
+      drawTable(ctx, obj);
+    }
+  }
+
+  cv.toBlob(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '無邊白板.png';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast('已匯出圖片');
+  }, 'image/png');
+}
+
+function loadImg(obj) {
+  if (imgCache.has(obj.id)) return Promise.resolve(imgCache.get(obj.id));
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => { imgCache.set(obj.id, img); res(img); };
+    img.onerror = () => res(null);
+    img.src = obj.src;
+  });
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function drawText(ctx, text, x, y, maxW, size, color) {
+  ctx.fillStyle = color;
+  ctx.font = `${size}px -apple-system, 'PingFang TC', sans-serif`;
+  ctx.textBaseline = 'top';
+  const lh = size * 1.4;
+  let cy = y;
+  for (const para of (text || '').split('\n')) {
+    let line = '';
+    for (const ch of para) {
+      if (ctx.measureText(line + ch).width > maxW && line) {
+        ctx.fillText(line, x, cy); cy += lh; line = ch;
+      } else line += ch;
+    }
+    ctx.fillText(line, x, cy); cy += lh;
+  }
+}
+function drawShape(ctx, obj) {
+  const { x, y, w, h } = obj;
+  ctx.fillStyle = obj.fill;
+  ctx.strokeStyle = 'rgba(0,0,0,0.14)';
+  ctx.lineWidth = 1;
+  ctx.save();
+  ctx.translate(x, y);
+  switch (obj.shape) {
+    case 'rect': ctx.fillRect(0, 0, w, h); ctx.strokeRect(0, 0, w, h); break;
+    case 'roundrect': roundRect(ctx, 0, 0, w, h, Math.min(w, h) * 0.16); ctx.fill(); ctx.stroke(); break;
+    case 'ellipse':
+      ctx.beginPath(); ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke(); break;
+    case 'triangle':
+      ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+      ctx.fill(); ctx.stroke(); break;
+    case 'star': { const p = new Path2D(starPath(w, h)); ctx.fill(p); ctx.stroke(p); break; }
+    case 'line':
+      ctx.strokeStyle = obj.fill; ctx.lineWidth = 5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(0, h); ctx.lineTo(w, 0); ctx.stroke(); break;
+  }
+  ctx.restore();
+}
+function drawTable(ctx, obj) {
+  const rows = obj.cells.length, cols = obj.cells[0].length;
+  const cw = obj.w / cols, rh = 40;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(obj.x, obj.y, obj.w, rh * rows);
+  ctx.fillStyle = '#f5f5f7';
+  ctx.fillRect(obj.x, obj.y, obj.w, rh);
+  ctx.strokeStyle = '#d9d9de';
+  ctx.lineWidth = 1;
+  for (let r = 0; r <= rows; r++) {
+    ctx.beginPath(); ctx.moveTo(obj.x, obj.y + r * rh); ctx.lineTo(obj.x + obj.w, obj.y + r * rh); ctx.stroke();
+  }
+  for (let c = 0; c <= cols; c++) {
+    ctx.beginPath(); ctx.moveTo(obj.x + c * cw, obj.y); ctx.lineTo(obj.x + c * cw, obj.y + rh * rows); ctx.stroke();
+  }
+  ctx.fillStyle = '#222';
+  ctx.font = "15px -apple-system, 'PingFang TC', sans-serif";
+  ctx.textBaseline = 'middle';
+  obj.cells.forEach((row, r) => row.forEach((cell, c) => {
+    if (cell) ctx.fillText(cell, obj.x + c * cw + 10, obj.y + r * rh + rh / 2, cw - 20);
+  }));
+}
+
+/* ================= 介紹頁 ================= */
+$('introGo').addEventListener('click', () => {
+  $('intro').classList.add('hidden');
+  try { localStorage.setItem('freeform-intro-seen', '1'); } catch (e) {}
+});
+
+/* ================= 啟動 ================= */
+load();
+if (localStorage.getItem('freeform-intro-seen')) $('intro').classList.add('hidden');
+applyView();
+render();
+updateUndoBtn();
+setTool('select');
+</script>
+</body>
+</html>
