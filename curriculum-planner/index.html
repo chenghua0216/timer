@@ -16,14 +16,15 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Noto Sans TC', system-ui, sans-serif; background: #f5f5f5; color: var(--ink); line-height: 1.6; }
-  header { background: var(--dark); color: #fff; padding: 12px 20px; position: sticky; top: 0; z-index: 20; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
-  header .wrap { max-width: 1240px; margin: 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  header h1 { font-size: 16px; font-weight: 700; letter-spacing: .04em; }
-  header h1 b { color: var(--accent); }
+  header { background: #fff; color: var(--ink); padding: 10px 20px; position: sticky; top: 0; z-index: 20; border-bottom: 1px solid #e5e7eb; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  header .wrap { max-width: 1240px; margin: 0 auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  header img.logo { height: 40px; width: auto; }
+  header .titlebox { border-left: 3px solid var(--accent); padding-left: 12px; }
+  header h1 { font-size: 16px; font-weight: 900; letter-spacing: .04em; color: var(--dark); line-height: 1.3; }
+  header .sub { font-size: 11px; color: var(--grey); }
   header .draftbar { margin-left: auto; display: flex; gap: 8px; align-items: center; font-size: 12px; }
-  header select, header button { font-size: 12px; padding: 5px 10px; border-radius: 8px; border: 0; cursor: pointer; font-family: inherit; }
-  header select { background: rgba(255,255,255,.15); color: #fff; max-width: 220px; }
-  header select option { color: #202020; }
+  header select, header button { font-size: 12px; padding: 5px 10px; border-radius: 8px; cursor: pointer; font-family: inherit; }
+  header select { background: #f1f3f4; color: var(--ink); max-width: 220px; border: 1px solid #e0e4e7; }
   .btn { background: var(--accent); color: var(--ink); font-weight: 700; border: 0; border-radius: 10px; padding: 9px 18px; cursor: pointer; font-size: 14px; font-family: inherit; transition: filter .15s; }
   .btn:hover { filter: brightness(1.05); }
   .btn:disabled { opacity: .5; cursor: default; }
@@ -40,6 +41,7 @@
   .steps button.on b { color: var(--accent); }
 
   .layout { display: grid; grid-template-columns: minmax(0,1fr) 460px; gap: 16px; align-items: start; }
+  .layout.single { grid-template-columns: 1fr; }
   @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } .preview-col { position: static !important; } }
 
   .panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 20px; }
@@ -122,7 +124,11 @@
 
 <header>
   <div class="wrap">
-    <h1>心創力．課程規劃簡報產生器 <b>｜</b> 立賢教育基金會</h1>
+    <img class="logo" src="data:image/png;base64,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" alt="立賢教育基金會" />
+    <div class="titlebox">
+      <h1>心創力．課程規劃簡報產生器</h1>
+      <div class="sub">立賢教育基金會｜115 學年度心創力校本陪伴計畫</div>
+    </div>
     <div class="draftbar">
       <select id="draftSelect" aria-label="載入草稿"><option value="">載入草稿…</option></select>
       <button class="btn ghost" id="btnSaveDraft">儲存草稿</button>
@@ -333,11 +339,11 @@
       </section>
     </div>
 
-    <!-- ===== 即時預覽 ===== -->
-    <div class="preview-col">
+    <!-- ===== 簡報預覽（步驟 8 顯示）===== -->
+    <div class="preview-col" id="previewCol" hidden>
       <div class="preview-card">
-        <h3 id="previewLabel">即時預覽</h3>
-        <div class="slide" id="slidePreview"></div>
+        <h3>簡報預覽（依填寫內容模擬）</h3>
+        <div id="deckPreview"></div>
       </div>
     </div>
   </div>
@@ -669,41 +675,35 @@ function renderChecks() {
   return items;
 }
 
-// ====== 即時預覽（簡化版，配色與版式對齊簡報）======
+// ====== 簡報預覽（步驟 8 顯示；簡化版，配色與版式對齊簡報）======
 function pv(id) { return esc($(id).value.trim()); }
 function pvOr(id, ph) { const v = $(id).value.trim(); return v ? escNl(v) : `<span style="color:#B0BEC5">${esc(ph)}</span>`; }
 function slideHead(title, sub) {
-  return `<div class="sl-title"><h4>${title}</h4><p>${sub}</p></div>`;
+  return `<div class="sl-title"><h4><img src="data:image/png;base64,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" style="height:14px;width:auto" alt="" /> ${title}</h4><p>${sub}</p></div>`;
 }
-function renderPreview() {
-  const el = $('slidePreview');
-  const foot = (t, p) => `<div class="sl-foot">${esc(t)}</div><div class="sl-page">${p}</div>`;
-  let html = '';
-  const step = currentStep;
-  if (step === 0 || step === 7) {
+function renderSlideHtml(p) {
+  const foot = (t, n) => `<div class="sl-foot">${esc(t)}</div><div class="sl-page">${n}</div>`;
+  if (p === 1) {
     const planV = $('plan').value;
     const chips = [['A', '方案 A 完整體驗'], ['B', '方案 B 多元體驗'], ['C', '方案 C 探索工作坊']].map(([k, t]) =>
       `<span style="padding:2px 7px;border-radius:3px;font-size:6.5px;${k === planV ? 'background:#F1C232;color:#202020;font-weight:700' : 'background:#fff;border:1px solid #eee;color:#9E9E9E'}">${t}</span>`).join(' ');
-    const circles = ['#E8623C', '#E07A9B', '#3A7CA5', '#2E9D8E', '#F1C232'].map((c, i) =>
-      `<div style="position:absolute;border-radius:50%;background:${c};opacity:.85;width:${34 - i * 4}%;height:${(34 - i * 4) * 1.78}%;right:${(i * 9) % 22}%;top:${16 + i * 13}%"></div>`).join('');
-    html = `
-      <div style="position:absolute;left:5.5%;top:12%;width:56%">
-        <p style="font-size:7px;color:#607D8B;font-weight:700">財團法人立賢教育基金會</p>
-        <p style="font-size:6.8px;color:#9E9E9E;margin-top:2px">${esc(academicLine())}</p>
-        <p style="font-size:15px;font-weight:900;margin-top:6px;line-height:1.3">${pvOr('schoolName', '［學校名稱］')} 課程規劃簡報</p>
-        <div style="background:#EEEEEE;border-radius:4px;padding:4px 7px;margin-top:8px;font-size:6.8px;color:#4A4A4A">一句話定位　｜　${pvOr('tagline', '（動詞＋對象＋改變）')}</div>
+    return `
+      <div style="position:absolute;left:5.5%;top:11%;width:80%">
+        <img src="data:image/png;base64,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" style="height:26px;width:auto" alt="立賢教育基金會" />
+        <p style="font-size:6.8px;color:#9E9E9E;margin-top:5px">${esc(academicLine())}</p>
+        <p style="font-size:15px;font-weight:900;margin-top:5px;line-height:1.3">${pvOr('schoolName', '［學校名稱］')} 課程規劃簡報</p>
+        <div style="background:#EEEEEE;border-radius:4px;padding:4px 7px;margin-top:8px;font-size:6.8px;color:#4A4A4A;max-width:72%">一句話定位　｜　${pvOr('tagline', '（動詞＋對象＋改變）')}</div>
         <div style="margin-top:8px;font-size:6.5px;color:#4A4A4A">
           <span style="background:#EEEEEE;border-radius:3px;padding:2px 6px">負責夥伴：${pv('partner') || '＿＿＿'}</span>
           <span style="background:#EEEEEE;border-radius:3px;padding:2px 6px;margin-left:4px">學期：${esc($('semester').value)}</span>
         </div>
         <div style="margin-top:7px">${chips}</div>
       </div>
-      <div style="position:absolute;right:0;top:0;width:36%;height:100%;overflow:hidden">${circles}</div>
       ${foot('', 1)}`;
-    $('previewLabel').textContent = '即時預覽｜P1 封面';
-  } else if (step === 1) {
+  }
+  if (p === 2) {
     const card = (t, id, ph) => `<div class="sl-card"><h5>${t}</h5><p class="clamp3">${pvOr(id, ph)}</p></div>`;
-    html = `${slideHead('學校速寫與需求', '把學校處境與期待，濃縮成夥伴與講師都能接手的速寫。')}
+    return `${slideHead('學校速寫與需求', '把學校處境與期待，濃縮成夥伴與講師都能接手的速寫。')}
       <div style="position:absolute;left:4.5%;right:4.5%;top:22%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
         ${card('學校特色', 's2_feature', '人文／自然環境、校本課程')}
         ${card('學生概況', 's2_students', '人數、年級分布、個案脈絡')}
@@ -714,10 +714,10 @@ function renderPreview() {
         ${card('申請動機與期待', 's2_motivation', '校方原話＋你的翻譯')}
       </div>
       ${foot('個案資訊只留與課程設計相關的，避免標籤化。', 2)}`;
-    $('previewLabel').textContent = '即時預覽｜P2 學校速寫與需求';
-  } else if (step === 2) {
+  }
+  if (p === 3) {
     const card = (t, id, ph) => `<div class="sl-card" style="text-align:center;padding-top:8px"><h5 style="justify-content:center">${t}</h5><p class="clamp3">${pvOr(id, ph)}</p></div>`;
-    html = `${slideHead('概念透鏡與通則', '把零散需求收斂成一個概念透鏡，長出 2–3 條可遷移的通則。')}
+    return `${slideHead('概念透鏡與通則', '把零散需求收斂成一個概念透鏡，長出 2–3 條可遷移的通則。')}
       <div style="position:absolute;left:4.5%;right:4.5%;top:22%;background:#37474F;color:#fff;border-radius:5px;padding:5px 8px;font-size:7.2px">
         <b style="color:#F1C232">主通則　｜</b>　${pvOr('s3_main', '（最核心的一條原則句）')}
         <div style="font-size:6px;color:#B0BEC5;margin-top:2px">回應 P2 的需求：${pvOr('s3_respond', '（對應的申請動機／期待）')}</div>
@@ -730,19 +730,19 @@ function renderPreview() {
         ${card('③ 通則', 's3_principles', '其餘 1–2 條原則句')}
       </div>
       ${foot('先有通則，再選主題承載，不要倒過來。', 3)}`;
-    $('previewLabel').textContent = '即時預覽｜P3 概念透鏡與通則';
-  } else if (step === 3) {
+  }
+  if (p === 4) {
     const rows = courses.map(r => `<tr><td>${esc(r.type)}</td><td>${esc(r.dir)}</td><td>${esc(r.topic)}</td><td>${esc(r.prin)}</td><td>${esc(r.cnt)}</td><td>${esc(r.teach)}</td></tr>`).join('');
-    html = `${slideHead('學生課程　｜　領域 × 主題 × 承載概念', '用具體領域與主題，把上一頁的通則裝進去。')}
+    return `${slideHead('學生課程　｜　領域 × 主題 × 承載概念', '用具體領域與主題，把上一頁的通則裝進去。')}
       <div style="position:absolute;left:4.5%;right:4.5%;top:23%">
         <table class="sl-table"><tr><th>課程類別</th><th>對應五大方向</th><th>主題名稱</th><th>承載哪條通則</th><th>堂次</th><th>預計邀請講師</th></tr>${rows || '<tr><td colspan=6 style="color:#B0BEC5">（尚未新增課程）</td></tr>'}</table>
         <p style="font-size:6.3px;color:#9E9E9E;margin-top:5px">${pvOr('s4_note', '堂次加總對齊所選方案。')}</p>
       </div>
       ${foot('同一條通則可由不同領域承載。', 4)}`;
-    $('previewLabel').textContent = '即時預覽｜P4 學生課程';
-  } else if (step === 4) {
+  }
+  if (p === 5) {
     const rows = teacherCourses.map(r => `<tr><td>${esc(r.type)}</td><td>${esc(r.topic)}</td><td>${esc(r.goal)}</td><td>${esc(r.cnt)}</td><td>${esc(r.teach)}</td></tr>`).join('');
-    html = `${slideHead('教師研習　｜　賦能 × 共學', '說明教師端怎麼被支持、和學生課程怎麼呼應。')}
+    return `${slideHead('教師研習　｜　賦能 × 共學', '說明教師端怎麼被支持、和學生課程怎麼呼應。')}
       <div style="position:absolute;left:4.5%;right:4.5%;top:22%">
         <table class="sl-table"><tr><th>課程類別</th><th>主題名稱</th><th>主題目標（承載哪條通則）</th><th>堂次</th><th>講師</th></tr>${rows || '<tr><td colspan=5 style="color:#B0BEC5">（尚未新增研習）</td></tr>'}</table>
       </div>
@@ -751,11 +751,11 @@ function renderPreview() {
         <div class="sl-card"><h5>與學生課程的連動點</h5><p class="clamp2">${pvOr('s5_link', '用 P3 的通則語言描述')}</p></div>
       </div>
       ${foot('教師研習不是學生課程的縮小版。', 5)}`;
-    $('previewLabel').textContent = '即時預覽｜P5 教師研習';
-  } else if (step === 5) {
+  }
+  if (p === 6) {
     const box = t => `<div style="flex:1;background:#EEEEEE;border-radius:4px;padding:5px 6px;font-size:7px;font-weight:700;color:#37474F;display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:2px;background:#607D8B;flex-shrink:0"></span>${t}</div>`;
     const cnt = (t, id) => `<div style="display:flex;justify-content:space-between;font-size:6.6px;color:#4A4A4A;border-bottom:1px solid #e2e6e9;padding:2px 0"><span>${t}</span><b>${pv(id) || '＿ 堂'}</b></div>`;
-    html = `${slideHead('本學期時程與堂次', '把本學期攤成時間軸，讓校方看得到節奏。')}
+    return `${slideHead('本學期時程與堂次', '把本學期攤成時間軸，讓校方看得到節奏。')}
       <div style="position:absolute;left:5.5%;right:5.5%;top:23%;display:flex;gap:4px;align-items:center">
         ${box('前置共備')}<span style="color:#607D8B;font-weight:900">→</span>${box('課程進行 ・ 觀課')}<span style="color:#607D8B;font-weight:900">→</span>${box('期末回顧')}
       </div>
@@ -768,22 +768,31 @@ function renderPreview() {
         <p class="clamp4">${pvOr('s6_total', '方案與本學期總堂次')}<br>${pvOr('s6_remind', '場地、接駁、觀課教師…')}</p>
       </div>
       ${foot('時程對齊 115/09 起、不含寒假。', 6)}`;
-    $('previewLabel').textContent = '即時預覽｜P6 時程與堂次';
-  } else if (step === 6) {
-    const card = (t, id, ph) => `<div class="sl-card" style="text-align:center;padding-top:8px"><h5 style="justify-content:center">${t}</h5><p class="clamp4">${pvOr(id, ph)}</p></div>`;
-    html = `${slideHead('預期成果', '收束在「這學期結束，師生與校園會有什麼具體不同」。')}
-      <div style="position:absolute;left:4.5%;right:4.5%;top:23%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
-        ${card('對學生', 's7_student', '創造力自信／安全感／表達')}
-        ${card('對教師', 's7_teacher', '內在韌性／覺察／班級經營')}
-        ${card('對校園文化', 's7_culture', '支持氛圍／團隊凝聚')}
-      </div>
-      <div style="position:absolute;left:4.5%;right:4.5%;top:66%;background:#37474F;color:#fff;border-radius:5px;padding:5px 8px;font-size:6.6px">
-        <b style="color:#F1C232">評估方式</b>　量化：${pvOr('s7_quant', '人次／完成率／參與度')}　　質性：${pvOr('s7_qual', '作品與表達／對話片段')}
-      </div>
-      ${foot('成果寫「可被看見的片段」而非口號。', 7)}`;
-    $('previewLabel').textContent = '即時預覽｜P7 預期成果';
   }
-  el.innerHTML = html;
+  const card7 = (t, id, ph) => `<div class="sl-card" style="text-align:center;padding-top:8px"><h5 style="justify-content:center">${t}</h5><p class="clamp4">${pvOr(id, ph)}</p></div>`;
+  return `${slideHead('預期成果', '收束在「這學期結束，師生與校園會有什麼具體不同」。')}
+    <div style="position:absolute;left:4.5%;right:4.5%;top:23%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+      ${card7('對學生', 's7_student', '創造力自信／安全感／表達')}
+      ${card7('對教師', 's7_teacher', '內在韌性／覺察／班級經營')}
+      ${card7('對校園文化', 's7_culture', '支持氛圍／團隊凝聚')}
+    </div>
+    <div style="position:absolute;left:4.5%;right:4.5%;top:66%;background:#37474F;color:#fff;border-radius:5px;padding:5px 8px;font-size:6.6px">
+      <b style="color:#F1C232">評估方式</b>　量化：${pvOr('s7_quant', '人次／完成率／參與度')}　　質性：${pvOr('s7_qual', '作品與表達／對話片段')}
+    </div>
+    ${foot('成果寫「可被看見的片段」而非口號。', 7)}`;
+}
+function renderPreview() {
+  const col = $('previewCol');
+  const layout = document.querySelector('.layout');
+  if (currentStep !== 7) {
+    col.hidden = true;
+    layout.classList.add('single');
+    return;
+  }
+  col.hidden = false;
+  layout.classList.remove('single');
+  $('deckPreview').innerHTML = [1, 2, 3, 4, 5, 6, 7].map(p =>
+    `<p style="font-size:11px;color:#9E9E9E;margin:12px 0 4px;font-weight:700">P${p}</p><div class="slide">${renderSlideHtml(p)}</div>`).join('');
 }
 
 // ====== 草稿 ======
@@ -850,14 +859,6 @@ $('btnGenerate').addEventListener('click', () => {
 });
 
 // ====== 初始化 ======
-['schoolName', 'county', 'semester', 'tagline', 'partner',
- 's2_feature', 's2_students', 's2_venue', 's2_priority', 's2_motivation',
- 's3_main', 's3_respond', 's3_lens', 's3_concepts', 's3_principles',
- 's4_note', 's5_need', 's5_link', 'n1', 'n2', 'n3', 'n4', 's6_total', 's6_remind',
- 's7_student', 's7_teacher', 's7_culture', 's7_quant', 's7_qual'].forEach(id => {
-  const el = $(id);
-  if (el) el.addEventListener('input', renderPreview);
-});
 $('schoolSelect').addEventListener('change', pickSchool);
 $('plan').addEventListener('change', () => { onPlanChange(); renderPreview(); });
 

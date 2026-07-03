@@ -175,6 +175,21 @@ function setup() {
   return { folderId: folderId, sheetId: sheetId, templateId: templateId };
 }
 
+// 母版有更新（貼上新的 Template.gs 後）在編輯器執行一次：
+// 以新內容重建母版並更新 TEMPLATE_ID，舊母版改名封存
+function refreshTemplate() {
+  var oldId = PROPS.getProperty('TEMPLATE_ID');
+  if (oldId) {
+    try {
+      var old = DriveApp.getFileById(oldId);
+      old.setName(old.getName() + '（舊版 ' +
+        Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd') + '）');
+    } catch (e) {}
+  }
+  PROPS.deleteProperty('TEMPLATE_ID');
+  return setup();
+}
+
 // ====== 草稿（Google Sheet）======
 var DRAFT_HEADER = ['key', 'school', 'semester', 'updatedAt', 'updatedBy', 'json'];
 
@@ -261,7 +276,7 @@ function generateDeck(data) {
 
   // P1 封面
   R('academic', data.academic);
-  R('school', data.school);
+  R('school', data.school ? data.school + ' ' : ''); // 與範例一致：「峨眉國小 課程規劃簡報」
   R('tagline', data.tagline);
   R('partner', data.partner);
   R('semester', data.semester);
