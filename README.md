@@ -1,9 +1,11 @@
 # timer
 
-此儲存庫包含兩個單一檔案的網頁 App：
+此儲存庫包含以下網頁 App：
 
 - `index.html` — 開會計時器
 - `whiteboard.html` — 無邊白板：類似 Apple「無邊記 (Freeform)」的無限畫布白板
+- `curriculum-planner/` — 心創力．課程規劃簡報產生器（Apps Script 專案）：
+  引導式填寫網頁，一鍵產出與官方模板同格式、同配色的課程規劃簡報，詳見該資料夾的 README
 
 ## 無邊白板
 

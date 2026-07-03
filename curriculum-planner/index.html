@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>心創力．課程規劃簡報產生器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  /* 調色與簡報一致：藍灰主色＋黃色強調 */
+  :root {
+    --primary: #607D8B; --dark: #37474F; --accent: #F1C232;
+    --ink: #202020; --sub: #4A4A4A; --grey: #9E9E9E;
+    --card: #EEEEEE; --card2: #F7F7F7; --line: #B0BEC5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans TC', system-ui, sans-serif; background: #f5f5f5; color: var(--ink); line-height: 1.6; }
+  header { background: var(--dark); color: #fff; padding: 12px 20px; position: sticky; top: 0; z-index: 20; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  header .wrap { max-width: 1240px; margin: 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; font-weight: 700; letter-spacing: .04em; }
+  header h1 b { color: var(--accent); }
+  header .draftbar { margin-left: auto; display: flex; gap: 8px; align-items: center; font-size: 12px; }
+  header select, header button { font-size: 12px; padding: 5px 10px; border-radius: 8px; border: 0; cursor: pointer; font-family: inherit; }
+  header select { background: rgba(255,255,255,.15); color: #fff; max-width: 220px; }
+  header select option { color: #202020; }
+  .btn { background: var(--accent); color: var(--ink); font-weight: 700; border: 0; border-radius: 10px; padding: 9px 18px; cursor: pointer; font-size: 14px; font-family: inherit; transition: filter .15s; }
+  .btn:hover { filter: brightness(1.05); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.ghost { background: #fff; border: 1px solid var(--line); color: var(--sub); font-weight: 500; }
+  .btn.dark { background: var(--primary); color: #fff; }
+
+  main { max-width: 1240px; margin: 0 auto; padding: 16px 20px 60px; }
+  /* 步驟導覽 */
+  .steps { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .steps button { border: 1px solid var(--line); background: #fff; color: var(--sub); border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .steps button.on { background: var(--dark); border-color: var(--dark); color: #fff; font-weight: 700; }
+  .steps button.done { border-color: var(--primary); color: var(--primary); }
+  .steps b { color: var(--accent); margin-right: 4px; font-weight: 900; }
+  .steps button.on b { color: var(--accent); }
+
+  .layout { display: grid; grid-template-columns: minmax(0,1fr) 460px; gap: 16px; align-items: start; }
+  @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } .preview-col { position: static !important; } }
+
+  .panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 20px; }
+  .panel h2 { font-size: 17px; font-weight: 900; letter-spacing: .03em; margin-bottom: 2px; }
+  .panel .desc { font-size: 12.5px; color: var(--grey); margin-bottom: 14px; }
+  .tip { display: flex; gap: 8px; align-items: flex-start; background: #FDF6E3; border: 1px solid #F1C232; border-radius: 10px; padding: 8px 12px; font-size: 12.5px; color: #7a5d00; margin-bottom: 14px; }
+  .tip::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 7px; flex-shrink: 0; }
+
+  label.f { display: block; font-size: 13px; font-weight: 700; color: var(--dark); margin: 12px 0 4px; }
+  label.f small { font-weight: 400; color: var(--grey); margin-left: 6px; }
+  input[type=text], input[type=number], textarea, select.f {
+    width: 100%; border: 1px solid #d7dde1; border-radius: 8px; padding: 8px 10px;
+    font-size: 14px; font-family: inherit; outline: none; background: #fff; transition: border-color .15s;
+  }
+  input:focus, textarea:focus, select.f:focus { border-color: var(--primary); }
+  textarea { resize: vertical; min-height: 64px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .row2, .row3 { grid-template-columns: 1fr; } }
+
+  .prefill { margin-top: 6px; font-size: 12px; }
+  .prefill button { border: 1px dashed var(--primary); background: #fff; color: var(--primary); border-radius: 6px; padding: 2px 8px; font-size: 11.5px; cursor: pointer; font-family: inherit; }
+  .prefill button:hover { background: #eef3f5; }
+
+  /* 課程列 */
+  .course-row { border: 1px solid #e0e4e7; background: var(--card2); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .course-row .grid { display: grid; grid-template-columns: 150px 150px 1fr 70px; gap: 8px; margin-bottom: 8px; }
+  .course-row .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media (max-width: 700px) { .course-row .grid, .course-row .grid2 { grid-template-columns: 1fr 1fr; } }
+  .course-row input, .course-row select { font-size: 13px; padding: 6px 8px; }
+  .course-row .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; color: var(--grey); font-weight: 700; }
+  .course-row .head button { border: 0; background: none; color: #c66; cursor: pointer; font-size: 12px; font-family: inherit; }
+  .addrow { border: 1px dashed var(--line); background: #fff; color: var(--primary); border-radius: 10px; padding: 8px; width: 100%; cursor: pointer; font-family: inherit; font-size: 13px; }
+  .quota { font-size: 12.5px; color: var(--sub); background: var(--card); border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
+  .quota b { color: var(--dark); }
+  .quota .bad { color: #c0392b; font-weight: 700; }
+  .quota .good { color: #2E9D8E; font-weight: 700; }
+
+  .nav { display: flex; justify-content: space-between; margin-top: 18px; }
+
+  /* 預覽 */
+  .preview-col { position: sticky; top: 64px; }
+  .preview-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px; }
+  .preview-card h3 { font-size: 12px; color: var(--grey); font-weight: 700; margin-bottom: 8px; letter-spacing: .05em; }
+  .slide { aspect-ratio: 16 / 9; background: #fff; border: 1px solid #dfe3e6; border-radius: 6px; overflow: hidden; position: relative; font-size: 8.5px; color: var(--ink); box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+  .slide * { line-height: 1.45; }
+  .sl-foot { position: absolute; left: 4.5%; bottom: 3.5%; display: flex; align-items: center; gap: 4px; font-size: 6.5px; color: var(--grey); }
+  .sl-foot::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .sl-page { position: absolute; right: 3.5%; bottom: 3.5%; font-size: 6.5px; color: var(--grey); }
+  .sl-title { position: absolute; left: 4.5%; top: 5%; right: 4.5%; }
+  .sl-title h4 { font-size: 11px; font-weight: 900; color: var(--ink); display: flex; align-items: center; gap: 4px; }
+  .sl-title h4::before { content: ''; width: 6px; height: 8px; background: var(--accent); border-radius: 2px; }
+  .sl-title p { font-size: 6.5px; color: var(--grey); }
+  .sl-card { background: var(--card); border-radius: 5px; padding: 5px 7px; overflow: hidden; }
+  .sl-card h5 { font-size: 8px; font-weight: 700; color: var(--dark); display: flex; align-items: center; gap: 3px; }
+  .sl-card h5::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: var(--primary); flex-shrink: 0; }
+  .sl-card p { font-size: 6.8px; color: var(--sub); white-space: pre-wrap; }
+  .clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .clamp4 { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .sl-table { width: 100%; border-collapse: collapse; font-size: 6.3px; }
+  .sl-table th { background: var(--dark); color: #fff; font-weight: 700; padding: 3px 4px; text-align: left; }
+  .sl-table td { background: var(--card2); border-bottom: 1px solid #fff; padding: 3px 4px; color: var(--sub); vertical-align: top; }
+
+  /* 檢核 */
+  .checks { margin-top: 12px; }
+  .checks .item { display: flex; gap: 8px; font-size: 13px; padding: 7px 10px; border-radius: 8px; margin-bottom: 6px; align-items: flex-start; }
+  .checks .warn { background: #FDF0EC; color: #a94425; }
+  .checks .pass { background: #ECF6F1; color: #21735f; }
+  .result { margin-top: 14px; padding: 14px; border-radius: 10px; background: #ECF6F1; font-size: 14px; display: none; }
+  .result a { color: #1b6653; font-weight: 700; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--dark); color: #fff; padding: 9px 18px; border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 50; }
+  .toast.show { opacity: 1; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>心創力．課程規劃簡報產生器 <b>｜</b> 立賢教育基金會</h1>
+    <div class="draftbar">
+      <select id="draftSelect" aria-label="載入草稿"><option value="">載入草稿…</option></select>
+      <button class="btn ghost" id="btnSaveDraft">儲存草稿</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="steps" id="stepNav"></div>
+
+  <div class="layout">
+    <div>
+      <!-- ===== Step 1 封面 ===== -->
+      <section class="panel step" data-step="0">
+        <h2>P1｜封面</h2>
+        <p class="desc">先定調：這學期要陪誰、做出什麼改變。</p>
+        <div class="tip">一句話定位＝動詞＋對象＋改變。例：陪三、四年級用身體說故事，讓情緒有多元的出口，也讓師生靠得更近。</div>
+
+        <div class="row2">
+          <div>
+            <label class="f">學校／單位</label>
+            <select class="f" id="schoolSelect"><option value="">選擇學校（自動帶入資料）…</option><option value="__other">其他（手動輸入）</option></select>
+            <input type="text" id="schoolName" placeholder="學校／單位名稱" style="margin-top:6px" />
+          </div>
+          <div>
+            <label class="f">縣市</label>
+            <input type="text" id="county" placeholder="例：新竹縣" />
+          </div>
+        </div>
+        <div class="row3">
+          <div>
+            <label class="f">學年度・學期</label>
+            <select class="f" id="semester">
+              <option>115 上</option><option>115 下</option>
+            </select>
+          </div>
+          <div>
+            <label class="f">負責夥伴</label>
+            <input type="text" id="partner" placeholder="例：潔言" />
+          </div>
+          <div>
+            <label class="f">方案</label>
+            <select class="f" id="plan">
+              <option value="A">方案 A 完整體驗</option>
+              <option value="B">方案 B 多元體驗</option>
+              <option value="C">方案 C 探索工作坊</option>
+              <option value="校訂">校訂課程（客製）</option>
+              <option value="校訂＋教支">校訂課程＋教師支持</option>
+              <option value="教支">教師支持（客製）</option>
+            </select>
+          </div>
+        </div>
+        <label class="f">一句話定位</label>
+        <textarea id="tagline" rows="2" placeholder="動詞＋對象＋改變，例：陪三到六年級用戲劇把說不出口的情緒演出來"></textarea>
+        <div class="nav"><span></span><button class="btn dark" onclick="go(1)">下一步：學校速寫 →</button></div>
+      </section>
+
+      <!-- ===== Step 2 學校速寫與需求 ===== -->
+      <section class="panel step" data-step="1" hidden>
+        <h2>P2｜學校速寫與需求</h2>
+        <p class="desc">把學校處境與期待，濃縮成夥伴與講師都能接手的速寫。</p>
+        <div class="tip">個案資訊只留與課程設計相關的，避免標籤化。</div>
+
+        <label class="f">學校特色 <small>人文／自然環境、現有特色或校本課程</small></label>
+        <textarea id="s2_feature" rows="3"></textarea>
+        <div class="prefill" id="pf_s2_feature"></div>
+
+        <label class="f">學生概況 <small>人數、年級分布、課堂表現，與課程相關的個案脈絡</small></label>
+        <textarea id="s2_students" rows="3"></textarea>
+        <div class="prefill" id="pf_s2_students"></div>
+
+        <label class="f">場地與環境 <small>可用空間、戶外條件、投影／麥克風等設備、交通</small></label>
+        <textarea id="s2_venue" rows="3"></textarea>
+        <div class="prefill" id="pf_s2_venue"></div>
+
+        <label class="f">優先領域 <small>校方點名的領域與原因，對齊申請附件一三大題</small></label>
+        <textarea id="s2_priority" rows="3"></textarea>
+        <div class="prefill" id="pf_s2_priority"></div>
+
+        <label class="f">申請動機與期待 <small>寫『校方原話＋你的翻譯』兩層——這一格是下一頁概念推導的起點</small></label>
+        <textarea id="s2_motivation" rows="4" placeholder="校方原話：…&#10;我們的翻譯：…"></textarea>
+        <div class="prefill" id="pf_s2_motivation"></div>
+
+        <div class="nav"><button class="btn ghost" onclick="go(0)">← 上一步</button><button class="btn dark" onclick="go(2)">下一步：概念透鏡 →</button></div>
+      </section>
+
+      <!-- ===== Step 3 概念透鏡與通則 ===== -->
+      <section class="panel step" data-step="2" hidden>
+        <h2>P3｜概念透鏡與通則</h2>
+        <p class="desc">把零散需求收斂成一個概念透鏡，長出 2–3 條可遷移的通則，作為整學期的軸。</p>
+        <div class="tip">先有通則，再選主題承載，不要倒過來。</div>
+
+        <label class="f">主通則 <small>最核心的一條原則句（完整句子）</small></label>
+        <textarea id="s3_main" rows="2" placeholder="例：當人把情緒外化成形象，就更能與它保持距離、重新選擇回應。"></textarea>
+
+        <label class="f">回應 P2 的需求 <small>這條軸對應的那一項申請動機／期待</small></label>
+        <input type="text" id="s3_respond" placeholder="例：孩子的情緒需要多元出口 × 師生關係想從上下走向親近" />
+
+        <div class="row3">
+          <div>
+            <label class="f">① 概念透鏡</label>
+            <textarea id="s3_lens" rows="3" placeholder="一個切入視角，如「連結」「界線」「轉化」「系統」。"></textarea>
+          </div>
+          <div>
+            <label class="f">② 核心概念</label>
+            <textarea id="s3_concepts" rows="3" placeholder="2–4 個撐起透鏡的概念。"></textarea>
+          </div>
+          <div>
+            <label class="f">③ 通則</label>
+            <textarea id="s3_principles" rows="3" placeholder="其餘 1–2 條可遷移的原則句，完整句子。"></textarea>
+          </div>
+        </div>
+        <div class="nav"><button class="btn ghost" onclick="go(1)">← 上一步</button><button class="btn dark" onclick="go(3)">下一步：學生課程 →</button></div>
+      </section>
+
+      <!-- ===== Step 4 學生課程 ===== -->
+      <section class="panel step" data-step="3" hidden>
+        <h2>P4｜學生課程：領域 × 主題 × 承載概念</h2>
+        <p class="desc">用具體領域與主題，把上一頁的通則裝進去，並列出預計邀請的講師。</p>
+        <div class="tip">同一條通則可由不同領域承載；每個主題都要能回答「它在搬運哪條通則」。</div>
+        <div class="quota" id="quota4"></div>
+        <div id="courseRows"></div>
+        <button class="addrow" id="addCourse">＋ 新增課程（最多 3 列）</button>
+
+        <label class="f">表格下方註解 <small>說明堂次如何對齊方案、三堂如何共用透鏡</small></label>
+        <textarea id="s4_note" rows="2"></textarea>
+
+        <div class="nav"><button class="btn ghost" onclick="go(2)">← 上一步</button><button class="btn dark" onclick="go(4)">下一步：教師研習 →</button></div>
+      </section>
+
+      <!-- ===== Step 5 教師研習 ===== -->
+      <section class="panel step" data-step="4" hidden>
+        <h2>P5｜教師研習：賦能 × 共學</h2>
+        <p class="desc">說明教師端怎麼被支持、和學生課程怎麼呼應，並列出預計邀請的講師。</p>
+        <div class="tip">教師研習不是學生課程的縮小版，先問「老師現在最累的是什麼」。</div>
+        <div class="quota" id="quota5"></div>
+        <div id="teacherRows"></div>
+        <button class="addrow" id="addTeacher">＋ 新增研習（最多 3 列）</button>
+
+        <label class="f">回應教師的哪個需求 <small>壓力釋放／班級經營／同理引導／自我照顧…</small></label>
+        <textarea id="s5_need" rows="2"></textarea>
+        <label class="f">與學生課程的連動點 <small>盡量用 P3 的通則語言描述</small></label>
+        <textarea id="s5_link" rows="2"></textarea>
+
+        <div class="nav"><button class="btn ghost" onclick="go(3)">← 上一步</button><button class="btn dark" onclick="go(5)">下一步：時程與堂次 →</button></div>
+      </section>
+
+      <!-- ===== Step 6 時程與堂次 ===== -->
+      <section class="panel step" data-step="5" hidden>
+        <h2>P6｜本學期時程與堂次</h2>
+        <p class="desc">把本學期攤成時間軸，讓校方看得到節奏。下學期方案另議。</p>
+        <div class="tip">時程對齊 115/09 起、不含寒假；堂次分配加總須與 P4／P5 表格一致（已自動帶入，可微調）。</div>
+
+        <div class="row2">
+          <div><label class="f">學生多元課程（廣度 90′）</label><input type="text" id="n1" /></div>
+          <div><label class="f">學生探索課程（聚焦 180′）</label><input type="text" id="n2" /></div>
+          <div><label class="f">教育者賦能（150′）</label><input type="text" id="n3" /></div>
+          <div><label class="f">師生共學工作坊（180′）</label><input type="text" id="n4" /></div>
+        </div>
+        <div class="prefill"><button id="recount">↺ 依 P4／P5 表格重新計算</button></div>
+
+        <label class="f">方案與本學期總堂次 <small>放在「校方協作提醒」卡第一行</small></label>
+        <input type="text" id="s6_total" placeholder="例：方案 B・本學期共 6 堂。" />
+        <label class="f">校方協作提醒 <small>場地、車站接駁、營養午餐、固定觀課教師…（可多行）</small></label>
+        <textarea id="s6_remind" rows="4" placeholder="學生課：週二 13:10–14:50；教師研習：週三下午。&#10;交通：…&#10;請安排固定觀課教師。"></textarea>
+
+        <div class="nav"><button class="btn ghost" onclick="go(4)">← 上一步</button><button class="btn dark" onclick="go(6)">下一步：預期成果 →</button></div>
+      </section>
+
+      <!-- ===== Step 7 預期成果 ===== -->
+      <section class="panel step" data-step="6" hidden>
+        <h2>P7｜預期成果</h2>
+        <p class="desc">收束在「這學期結束，師生與校園會有什麼具體不同」。</p>
+        <div class="tip">成果寫「可被看見的片段」而非口號；最後一句回扣封面的一句話定位。</div>
+
+        <label class="f">對學生</label>
+        <textarea id="s7_student" rows="2" placeholder="創造力自信／安全感／表達——寫可被看見的具體改變。"></textarea>
+        <label class="f">對教師</label>
+        <textarea id="s7_teacher" rows="2" placeholder="內在韌性／覺察／班級經營。"></textarea>
+        <label class="f">對校園文化</label>
+        <textarea id="s7_culture" rows="2" placeholder="支持氛圍／團隊凝聚／社區連結。"></textarea>
+        <div class="row2">
+          <div>
+            <label class="f">評估方式：量化</label>
+            <textarea id="s7_quant" rows="2"></textarea>
+          </div>
+          <div>
+            <label class="f">評估方式：質性</label>
+            <textarea id="s7_qual" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="nav"><button class="btn ghost" onclick="go(5)">← 上一步</button><button class="btn dark" onclick="go(7)">下一步：檢核與產出 →</button></div>
+      </section>
+
+      <!-- ===== Step 8 檢核與產出 ===== -->
+      <section class="panel step" data-step="7" hidden>
+        <h2>檢核與產出</h2>
+        <p class="desc">通過檢核後，一鍵產出與附件模板同格式、同配色、同頁序的簡報。</p>
+        <div class="checks" id="checks"></div>
+        <div class="nav">
+          <button class="btn ghost" onclick="go(6)">← 上一步</button>
+          <span>
+            <button class="btn ghost" id="btnSaveDraft2">儲存草稿</button>
+            <button class="btn" id="btnGenerate">產生簡報</button>
+          </span>
+        </div>
+        <div class="result" id="result"></div>
+      </section>
+    </div>
+
+    <!-- ===== 即時預覽 ===== -->
+    <div class="preview-col">
+      <div class="preview-card">
+        <h3 id="previewLabel">即時預覽</h3>
+        <div class="slide" id="slidePreview"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ====== HTML escape ======
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const escNl = s => esc(s).replace(/\n/g, '<br>');
+
+// ====== 方案課程額度（每學期；與後端一致，供離線預覽）======
+const PLAN_COURSES = {
+  'A': { title: '方案A・完整體驗', items: [
+    { type: '學生多元課程（廣度）', n: 2 }, { type: '學生探索課程（聚焦）', n: 1 },
+    { type: '教育者賦能', n: 2 }, { type: '師生共學工作坊', n: 1 } ] },
+  'B': { title: '方案B・多元體驗', items: [
+    { type: '學生多元課程（廣度）', n: 3 }, { type: '教育者賦能', n: 3 } ] },
+  'C': { title: '方案C・探索工作坊', items: [
+    { type: '學生探索課程（聚焦）', n: 3 }, { type: '教育者賦能', n: 3 } ] },
+  '校訂': { title: '校訂課程（客製）', items: [ { type: '校訂課程', n: 3 } ] },
+  '校訂＋教支': { title: '校訂課程＋教師支持（客製）', items: [
+    { type: '校訂課程', n: 3 }, { type: '教師支持研習', n: 3 } ] },
+  '教支': { title: '教師支持（客製）', items: [ { type: '教師支持研習', n: 3 } ] }
+};
+const STUDENT_TYPES = ['多元廣度 90′', '探索聚焦 180′', '校訂課程'];
+const TEACHER_TYPES = ['教育者賦能 150′', '師生共學 180′', '教師支持研習'];
+const DIRS = ['自然永續', '藝術語文', '肢體戲劇', '自我探索', '邏輯科技'];
+
+let SCHOOLS = [];
+let currentStep = 0;
+let courses = [];        // P4 列
+let teacherCourses = []; // P5 列
+let sel = null;          // 目前選中的學校物件
+
+const $ = id => document.getElementById(id);
+const canGs = () => typeof google !== 'undefined' && google.script && google.script.run;
+
+// ====== 步驟導覽 ======
+const STEP_NAMES = ['封面', '學校速寫', '概念通則', '學生課程', '教師研習', '時程堂次', '預期成果', '產出'];
+function renderNav() {
+  $('stepNav').innerHTML = STEP_NAMES.map((n, i) =>
+    `<button class="${i === currentStep ? 'on' : (i < currentStep ? 'done' : '')}" onclick="go(${i})"><b>${i + 1}</b>${n}</button>`
+  ).join('');
+}
+function go(i) {
+  currentStep = i;
+  document.querySelectorAll('.step').forEach(s => { s.hidden = +s.dataset.step !== i; });
+  renderNav();
+  if (i === 3) renderCourses();
+  if (i === 4) renderTeachers();
+  if (i === 5) autoCounts(false);
+  if (i === 7) renderChecks();
+  renderPreview();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ====== 學校選擇與帶入 ======
+function fillSchoolSelect() {
+  const s = $('schoolSelect');
+  const opts = SCHOOLS.map((x, i) => `<option value="${i}">${esc(x.name)}（${esc(x.county)}・${esc(x.plan)}）</option>`).join('');
+  s.innerHTML = '<option value="">選擇學校（自動帶入資料）…</option>' + opts + '<option value="__other">其他（手動輸入）</option>';
+}
+function pickSchool() {
+  const v = $('schoolSelect').value;
+  sel = null;
+  if (v !== '' && v !== '__other') {
+    sel = SCHOOLS[+v];
+    $('schoolName').value = sel.name;
+    $('county').value = sel.county;
+    $('partner').value = sel.lead || '';
+    $('plan').value = PLAN_COURSES[sel.plan] ? sel.plan : 'B';
+    onPlanChange();
+    renderPrefills();
+  }
+  renderPreview();
+}
+// 「一鍵帶入」按鈕：資料不硬塞，讓夥伴自己決定
+function renderPrefills() {
+  const map = {
+    pf_s2_feature: sel && sel.features ? sel.features.join('\n') : '',
+    pf_s2_students: sel ? (sel.students || '') : '',
+    pf_s2_venue: sel ? (sel.serve || '') : '',
+    pf_s2_priority: sel && sel.needs && sel.needs.length ? sel.needs[0] : '',
+    pf_s2_motivation: sel && sel.needs ? sel.needs.join('\n') : ''
+  };
+  Object.keys(map).forEach(k => {
+    const el = $(k);
+    if (!el) return;
+    el.innerHTML = map[k]
+      ? `<button onclick="applyPrefill('${k.slice(3)}')">↳ 帶入「${esc(sel.name)}」的資料</button>`
+      : '';
+  });
+}
+function applyPrefill(field) {
+  const src = {
+    s2_feature: sel.features ? sel.features.join('\n') : '',
+    s2_students: sel.students || '',
+    s2_venue: sel.serve || '',
+    s2_priority: sel.needs && sel.needs.length ? sel.needs[0] : '',
+    s2_motivation: sel.needs ? '校方期待：\n' + sel.needs.join('\n') + '\n我們的翻譯：' : ''
+  }[field];
+  if (src != null) { $(field).value = src; renderPreview(); }
+}
+
+// ====== 方案 → 預設課程列 ======
+function defaultRowsForPlan(plan) {
+  const cp = PLAN_COURSES[plan];
+  const c = [], t = [];
+  if (!cp) return { c, t };
+  cp.items.forEach(it => {
+    for (let k = 0; k < it.n; k++) {
+      if (it.type.indexOf('廣度') > -1) c.push({ type: '多元廣度 90′', dir: '', topic: '', prin: '', cnt: 1, teach: '' });
+      else if (it.type.indexOf('聚焦') > -1) c.push({ type: '探索聚焦 180′', dir: '', topic: '', prin: '', cnt: 1, teach: '' });
+      else if (it.type.indexOf('校訂') > -1) c.push({ type: '校訂課程', dir: '', topic: '', prin: '', cnt: 1, teach: '' });
+      else if (it.type.indexOf('賦能') > -1) t.push({ type: '教育者賦能 150′', topic: '', goal: '', cnt: 1, teach: '' });
+      else if (it.type.indexOf('共學') > -1) t.push({ type: '師生共學 180′', topic: '', goal: '', cnt: 1, teach: '' });
+      else if (it.type.indexOf('教師支持') > -1) t.push({ type: '教師支持研習', topic: '', goal: '', cnt: 1, teach: '' });
+    }
+  });
+  return { c: c.slice(0, 3), t: t.slice(0, 3) };
+}
+let lastDefaultNote = '';
+function onPlanChange() {
+  const hasContent = courses.some(r => r.topic) || teacherCourses.some(r => r.topic);
+  if (!hasContent) {
+    const d = defaultRowsForPlan($('plan').value);
+    courses = d.c; teacherCourses = d.t;
+    if (currentStep === 3) renderCourses();
+    if (currentStep === 4) renderTeachers();
+  }
+  const note = $('s4_note');
+  if (!note.value || note.value === lastDefaultNote) {
+    lastDefaultNote = defaultS4Note();
+    note.value = lastDefaultNote;
+  }
+  renderQuota();
+}
+function defaultS4Note() {
+  const plan = $('plan').value;
+  const cp = PLAN_COURSES[plan];
+  const stu = (cp ? cp.items : []).filter(i => i.type.indexOf('學生') > -1 || i.type.indexOf('校訂') > -1)
+    .reduce((s, i) => s + i.n, 0);
+  const label = { 'A': '方案 A', 'B': '方案 B', 'C': '方案 C' }[plan] || (cp ? cp.title : plan);
+  return label + '：學生課程每學期 ' + stu + ' 堂。每個主題都要能回答「它在搬運哪條通則」。';
+}
+
+// ====== P4 課程列 ======
+function renderCourses() {
+  $('courseRows').innerHTML = courses.map((r, i) => `
+    <div class="course-row">
+      <div class="head"><span>課程 ${i + 1}</span><button onclick="delCourse(${i})">移除</button></div>
+      <div class="grid">
+        <select onchange="upC(${i},'type',this.value)">${STUDENT_TYPES.map(t => `<option ${r.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        <select onchange="upC(${i},'dir',this.value)"><option value="">對應五大方向…</option>${DIRS.map(d => `<option ${r.dir === d ? 'selected' : ''}>${d}</option>`).join('')}<option ${r.dir && DIRS.indexOf(r.dir) < 0 ? 'selected' : ''} value="${esc(r.dir && DIRS.indexOf(r.dir) < 0 ? r.dir : '跨域')}">跨域／自填</option></select>
+        <input type="text" placeholder="主題名稱" value="${esc(r.topic)}" oninput="upC(${i},'topic',this.value)" />
+        <input type="number" min="1" placeholder="堂次" value="${esc(r.cnt)}" oninput="upC(${i},'cnt',this.value)" />
+      </div>
+      <div class="grid2">
+        <input type="text" placeholder="承載哪條通則（用 P3 的句子）" value="${esc(r.prin)}" oninput="upC(${i},'prin',this.value)" />
+        <input type="text" placeholder="預計邀請講師（姓名／領域）" value="${esc(r.teach)}" oninput="upC(${i},'teach',this.value)" />
+      </div>
+    </div>`).join('');
+  $('addCourse').hidden = courses.length >= 3;
+  renderQuota();
+}
+function upC(i, f, v) { courses[i][f] = f === 'cnt' ? (+v || '') : v; renderQuota(); renderPreview(); }
+function delCourse(i) { courses.splice(i, 1); renderCourses(); renderPreview(); }
+$('addCourse').addEventListener('click', () => {
+  courses.push({ type: STUDENT_TYPES[0], dir: '', topic: '', prin: '', cnt: 1, teach: '' });
+  renderCourses(); renderPreview();
+});
+
+// ====== P5 研習列 ======
+function renderTeachers() {
+  $('teacherRows').innerHTML = teacherCourses.map((r, i) => `
+    <div class="course-row">
+      <div class="head"><span>研習 ${i + 1}</span><button onclick="delTeacher(${i})">移除</button></div>
+      <div class="grid" style="grid-template-columns:170px 1fr 70px">
+        <select onchange="upT(${i},'type',this.value)">${TEACHER_TYPES.map(t => `<option ${r.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        <input type="text" placeholder="主題名稱" value="${esc(r.topic)}" oninput="upT(${i},'topic',this.value)" />
+        <input type="number" min="1" placeholder="堂次" value="${esc(r.cnt)}" oninput="upT(${i},'cnt',this.value)" />
+      </div>
+      <div class="grid2">
+        <input type="text" placeholder="主題目標（要帶老師經歷什麼、對應哪條通則）" value="${esc(r.goal)}" oninput="upT(${i},'goal',this.value)" />
+        <input type="text" placeholder="預計邀請講師（姓名／領域）" value="${esc(r.teach)}" oninput="upT(${i},'teach',this.value)" />
+      </div>
+    </div>`).join('');
+  $('addTeacher').hidden = teacherCourses.length >= 3;
+  renderQuota();
+}
+function upT(i, f, v) { teacherCourses[i][f] = f === 'cnt' ? (+v || '') : v; renderQuota(); renderPreview(); }
+function delTeacher(i) { teacherCourses.splice(i, 1); renderTeachers(); renderPreview(); }
+$('addTeacher').addEventListener('click', () => {
+  teacherCourses.push({ type: TEACHER_TYPES[0], topic: '', goal: '', cnt: 1, teach: '' });
+  renderTeachers(); renderPreview();
+});
+
+// ====== 堂次計算與額度檢核 ======
+function sums() {
+  const n = { broad: 0, focus: 0, empower: 0, colearn: 0, custom: 0 };
+  courses.forEach(r => {
+    const c = +r.cnt || 0;
+    if (r.type.indexOf('廣度') > -1) n.broad += c;
+    else if (r.type.indexOf('聚焦') > -1) n.focus += c;
+    else n.custom += c;
+  });
+  teacherCourses.forEach(r => {
+    const c = +r.cnt || 0;
+    if (r.type.indexOf('共學') > -1) n.colearn += c;
+    else n.empower += c;
+  });
+  n.student = n.broad + n.focus + n.custom;
+  n.teacher = n.empower + n.colearn;
+  n.total = n.student + n.teacher;
+  return n;
+}
+function quotaExpect() {
+  const cp = PLAN_COURSES[$('plan').value];
+  const e = { student: 0, teacher: 0 };
+  if (!cp) return e;
+  cp.items.forEach(i => {
+    if (i.type.indexOf('學生') > -1 || i.type.indexOf('校訂') > -1) e.student += i.n;
+    else e.teacher += i.n;
+  });
+  return e;
+}
+function renderQuota() {
+  const n = sums(), e = quotaExpect();
+  const cp = PLAN_COURSES[$('plan').value];
+  const mark = (a, b) => a === b ? `<span class="good">${a}／${b} ✓</span>` : `<span class="bad">${a}／${b}</span>`;
+  const html4 = `<b>${cp ? cp.title : ''}</b>　學生課程堂次：${mark(n.student, e.student)}（本學期）`;
+  const html5 = `<b>${cp ? cp.title : ''}</b>　教師端堂次：${mark(n.teacher, e.teacher)}（本學期）`;
+  if ($('quota4')) $('quota4').innerHTML = html4;
+  if ($('quota5')) $('quota5').innerHTML = html5;
+}
+function fmtCnt(v) { return v > 0 ? v + ' 堂' : '—'; }
+function autoCounts(force) {
+  const n = sums();
+  const set = (id, v) => { if (force || !$(id).value) $(id).value = v; };
+  set('n1', fmtCnt(n.broad + n.custom));
+  set('n2', fmtCnt(n.focus));
+  set('n3', fmtCnt(n.empower));
+  set('n4', fmtCnt(n.colearn));
+  if (force || !$('s6_total').value) {
+    const plan = $('plan').value;
+    const label = { 'A': '方案 A', 'B': '方案 B', 'C': '方案 C' }[plan] || (PLAN_COURSES[plan] || {}).title || plan;
+    $('s6_total').value = label + '・本學期共 ' + n.total + ' 堂。';
+  }
+}
+$('recount').addEventListener('click', () => { autoCounts(true); renderPreview(); });
+
+// ====== 收集資料 ======
+function academicLine() {
+  const county = $('county').value.trim();
+  const year = ($('semester').value.split(' ')[0] || '115');
+  return year + ' 學年度 ・ 心創力校本陪伴計畫' + (county ? ' ・ ' + county : '');
+}
+function collect() {
+  return {
+    school: $('schoolName').value.trim(),
+    county: $('county').value.trim(),
+    academic: academicLine(),
+    semester: $('semester').value,
+    tagline: $('tagline').value.trim(),
+    partner: $('partner').value.trim(),
+    plan: $('plan').value,
+    s2_feature: $('s2_feature').value.trim(),
+    s2_students: $('s2_students').value.trim(),
+    s2_venue: $('s2_venue').value.trim(),
+    s2_priority: $('s2_priority').value.trim(),
+    s2_motivation: $('s2_motivation').value.trim(),
+    s3_main: $('s3_main').value.trim(),
+    s3_respond: $('s3_respond').value.trim(),
+    s3_lens: $('s3_lens').value.trim(),
+    s3_concepts: $('s3_concepts').value.trim(),
+    s3_principles: $('s3_principles').value.trim(),
+    courses: courses.filter(r => r.topic || r.teach || r.prin),
+    s4_note: $('s4_note').value.trim(),
+    teacherCourses: teacherCourses.filter(r => r.topic || r.teach || r.goal),
+    s5_need: $('s5_need').value.trim(),
+    s5_link: $('s5_link').value.trim(),
+    n1: $('n1').value.trim() || '—', n2: $('n2').value.trim() || '—',
+    n3: $('n3').value.trim() || '—', n4: $('n4').value.trim() || '—',
+    s6_total: $('s6_total').value.trim(),
+    s6_remind: $('s6_remind').value.trim(),
+    s7_student: $('s7_student').value.trim(),
+    s7_teacher: $('s7_teacher').value.trim(),
+    s7_culture: $('s7_culture').value.trim(),
+    s7_quant: $('s7_quant').value.trim(),
+    s7_qual: $('s7_qual').value.trim()
+  };
+}
+function apply(d) {
+  const set = (id, v) => { if ($(id)) $(id).value = v == null ? '' : v; };
+  set('schoolName', d.school); set('county', d.county); set('semester', d.semester);
+  set('tagline', d.tagline); set('partner', d.partner); set('plan', d.plan);
+  ['s2_feature','s2_students','s2_venue','s2_priority','s2_motivation',
+   's3_main','s3_respond','s3_lens','s3_concepts','s3_principles',
+   's4_note','s5_need','s5_link','n1','n2','n3','n4','s6_total','s6_remind',
+   's7_student','s7_teacher','s7_culture','s7_quant','s7_qual'].forEach(k => set(k, d[k]));
+  courses = d.courses || [];
+  teacherCourses = d.teacherCourses || [];
+  const i = SCHOOLS.findIndex(s => s.name === d.school);
+  $('schoolSelect').value = i > -1 ? String(i) : '__other';
+  sel = i > -1 ? SCHOOLS[i] : null;
+  renderPrefills(); renderCourses(); renderTeachers(); renderQuota(); renderPreview();
+}
+
+// ====== 檢核 ======
+function renderChecks() {
+  const d = collect();
+  const n = sums(), e = quotaExpect();
+  const items = [];
+  const need = (cond, warnMsg, passMsg) => items.push({ ok: !!cond, msg: cond ? passMsg : warnMsg });
+  need(d.school, '尚未填學校／單位名稱（P1）', '學校：' + d.school);
+  need(d.tagline, '尚未填一句話定位（P1）——動詞＋對象＋改變', '一句話定位已填');
+  need(d.partner, '尚未填負責夥伴（P1）', '負責夥伴：' + d.partner);
+  need(d.s2_motivation, '申請動機與期待未填（P2）——它是 P3 概念推導的起點', 'P2 申請動機已填');
+  need(d.s3_main, '主通則未填（P3）——先有通則，再選主題承載', '主通則已填');
+  need(n.student === e.student, `學生課程堂次 ${n.student} 堂，未對齊方案額度 ${e.student} 堂（P4）`, `學生課程堂次 ${n.student}／${e.student} ✓`);
+  need(n.teacher === e.teacher, `教師端堂次 ${n.teacher} 堂，未對齊方案額度 ${e.teacher} 堂（P5）`, `教師端堂次 ${n.teacher}／${e.teacher} ✓`);
+  const noPrin = d.courses.filter(r => r.topic && !r.prin).length;
+  need(noPrin === 0, `有 ${noPrin} 個主題沒寫「承載哪條通則」（P4）`, '每個主題都有對應通則 ✓');
+  need(d.s7_student && d.s7_teacher, '預期成果未填完整（P7）——寫可被看見的片段', '預期成果已填');
+  $('checks').innerHTML = items.map(i =>
+    `<div class="item ${i.ok ? 'pass' : 'warn'}">${i.ok ? '✓' : '⚠'}　${esc(i.msg)}</div>`).join('');
+  return items;
+}
+
+// ====== 即時預覽（簡化版，配色與版式對齊簡報）======
+function pv(id) { return esc($(id).value.trim()); }
+function pvOr(id, ph) { const v = $(id).value.trim(); return v ? escNl(v) : `<span style="color:#B0BEC5">${esc(ph)}</span>`; }
+function slideHead(title, sub) {
+  return `<div class="sl-title"><h4>${title}</h4><p>${sub}</p></div>`;
+}
+function renderPreview() {
+  const el = $('slidePreview');
+  const foot = (t, p) => `<div class="sl-foot">${esc(t)}</div><div class="sl-page">${p}</div>`;
+  let html = '';
+  const step = currentStep;
+  if (step === 0 || step === 7) {
+    const planV = $('plan').value;
+    const chips = [['A', '方案 A 完整體驗'], ['B', '方案 B 多元體驗'], ['C', '方案 C 探索工作坊']].map(([k, t]) =>
+      `<span style="padding:2px 7px;border-radius:3px;font-size:6.5px;${k === planV ? 'background:#F1C232;color:#202020;font-weight:700' : 'background:#fff;border:1px solid #eee;color:#9E9E9E'}">${t}</span>`).join(' ');
+    const circles = ['#E8623C', '#E07A9B', '#3A7CA5', '#2E9D8E', '#F1C232'].map((c, i) =>
+      `<div style="position:absolute;border-radius:50%;background:${c};opacity:.85;width:${34 - i * 4}%;height:${(34 - i * 4) * 1.78}%;right:${(i * 9) % 22}%;top:${16 + i * 13}%"></div>`).join('');
+    html = `
+      <div style="position:absolute;left:5.5%;top:12%;width:56%">
+        <p style="font-size:7px;color:#607D8B;font-weight:700">財團法人立賢教育基金會</p>
+        <p style="font-size:6.8px;color:#9E9E9E;margin-top:2px">${esc(academicLine())}</p>
+        <p style="font-size:15px;font-weight:900;margin-top:6px;line-height:1.3">${pvOr('schoolName', '［學校名稱］')} 課程規劃簡報</p>
+        <div style="background:#EEEEEE;border-radius:4px;padding:4px 7px;margin-top:8px;font-size:6.8px;color:#4A4A4A">一句話定位　｜　${pvOr('tagline', '（動詞＋對象＋改變）')}</div>
+        <div style="margin-top:8px;font-size:6.5px;color:#4A4A4A">
+          <span style="background:#EEEEEE;border-radius:3px;padding:2px 6px">負責夥伴：${pv('partner') || '＿＿＿'}</span>
+          <span style="background:#EEEEEE;border-radius:3px;padding:2px 6px;margin-left:4px">學期：${esc($('semester').value)}</span>
+        </div>
+        <div style="margin-top:7px">${chips}</div>
+      </div>
+      <div style="position:absolute;right:0;top:0;width:36%;height:100%;overflow:hidden">${circles}</div>
+      ${foot('', 1)}`;
+    $('previewLabel').textContent = '即時預覽｜P1 封面';
+  } else if (step === 1) {
+    const card = (t, id, ph) => `<div class="sl-card"><h5>${t}</h5><p class="clamp3">${pvOr(id, ph)}</p></div>`;
+    html = `${slideHead('學校速寫與需求', '把學校處境與期待，濃縮成夥伴與講師都能接手的速寫。')}
+      <div style="position:absolute;left:4.5%;right:4.5%;top:22%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+        ${card('學校特色', 's2_feature', '人文／自然環境、校本課程')}
+        ${card('學生概況', 's2_students', '人數、年級分布、個案脈絡')}
+        ${card('場地與環境', 's2_venue', '空間、設備、交通')}
+      </div>
+      <div style="position:absolute;left:4.5%;right:4.5%;top:57%;display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        ${card('優先領域', 's2_priority', '校方點名的領域與原因')}
+        ${card('申請動機與期待', 's2_motivation', '校方原話＋你的翻譯')}
+      </div>
+      ${foot('個案資訊只留與課程設計相關的，避免標籤化。', 2)}`;
+    $('previewLabel').textContent = '即時預覽｜P2 學校速寫與需求';
+  } else if (step === 2) {
+    const card = (t, id, ph) => `<div class="sl-card" style="text-align:center;padding-top:8px"><h5 style="justify-content:center">${t}</h5><p class="clamp3">${pvOr(id, ph)}</p></div>`;
+    html = `${slideHead('概念透鏡與通則', '把零散需求收斂成一個概念透鏡，長出 2–3 條可遷移的通則。')}
+      <div style="position:absolute;left:4.5%;right:4.5%;top:22%;background:#37474F;color:#fff;border-radius:5px;padding:5px 8px;font-size:7.2px">
+        <b style="color:#F1C232">主通則　｜</b>　${pvOr('s3_main', '（最核心的一條原則句）')}
+        <div style="font-size:6px;color:#B0BEC5;margin-top:2px">回應 P2 的需求：${pvOr('s3_respond', '（對應的申請動機／期待）')}</div>
+      </div>
+      <div style="position:absolute;left:4.5%;right:4.5%;top:48%;display:grid;grid-template-columns:1fr 14px 1fr 14px 1fr;gap:2px;align-items:stretch">
+        ${card('① 概念透鏡', 's3_lens', '一個切入視角')}
+        <div style="align-self:center;color:#607D8B;font-weight:900;text-align:center">→</div>
+        ${card('② 核心概念', 's3_concepts', '2–4 個概念')}
+        <div style="align-self:center;color:#607D8B;font-weight:900;text-align:center">→</div>
+        ${card('③ 通則', 's3_principles', '其餘 1–2 條原則句')}
+      </div>
+      ${foot('先有通則，再選主題承載，不要倒過來。', 3)}`;
+    $('previewLabel').textContent = '即時預覽｜P3 概念透鏡與通則';
+  } else if (step === 3) {
+    const rows = courses.map(r => `<tr><td>${esc(r.type)}</td><td>${esc(r.dir)}</td><td>${esc(r.topic)}</td><td>${esc(r.prin)}</td><td>${esc(r.cnt)}</td><td>${esc(r.teach)}</td></tr>`).join('');
+    html = `${slideHead('學生課程　｜　領域 × 主題 × 承載概念', '用具體領域與主題，把上一頁的通則裝進去。')}
+      <div style="position:absolute;left:4.5%;right:4.5%;top:23%">
+        <table class="sl-table"><tr><th>課程類別</th><th>對應五大方向</th><th>主題名稱</th><th>承載哪條通則</th><th>堂次</th><th>預計邀請講師</th></tr>${rows || '<tr><td colspan=6 style="color:#B0BEC5">（尚未新增課程）</td></tr>'}</table>
+        <p style="font-size:6.3px;color:#9E9E9E;margin-top:5px">${pvOr('s4_note', '堂次加總對齊所選方案。')}</p>
+      </div>
+      ${foot('同一條通則可由不同領域承載。', 4)}`;
+    $('previewLabel').textContent = '即時預覽｜P4 學生課程';
+  } else if (step === 4) {
+    const rows = teacherCourses.map(r => `<tr><td>${esc(r.type)}</td><td>${esc(r.topic)}</td><td>${esc(r.goal)}</td><td>${esc(r.cnt)}</td><td>${esc(r.teach)}</td></tr>`).join('');
+    html = `${slideHead('教師研習　｜　賦能 × 共學', '說明教師端怎麼被支持、和學生課程怎麼呼應。')}
+      <div style="position:absolute;left:4.5%;right:4.5%;top:22%">
+        <table class="sl-table"><tr><th>課程類別</th><th>主題名稱</th><th>主題目標（承載哪條通則）</th><th>堂次</th><th>講師</th></tr>${rows || '<tr><td colspan=5 style="color:#B0BEC5">（尚未新增研習）</td></tr>'}</table>
+      </div>
+      <div style="position:absolute;left:4.5%;right:4.5%;top:66%;display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        <div class="sl-card"><h5>回應教師的哪個需求</h5><p class="clamp2">${pvOr('s5_need', '壓力釋放／班級經營／同理引導…')}</p></div>
+        <div class="sl-card"><h5>與學生課程的連動點</h5><p class="clamp2">${pvOr('s5_link', '用 P3 的通則語言描述')}</p></div>
+      </div>
+      ${foot('教師研習不是學生課程的縮小版。', 5)}`;
+    $('previewLabel').textContent = '即時預覽｜P5 教師研習';
+  } else if (step === 5) {
+    const box = t => `<div style="flex:1;background:#EEEEEE;border-radius:4px;padding:5px 6px;font-size:7px;font-weight:700;color:#37474F;display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:2px;background:#607D8B;flex-shrink:0"></span>${t}</div>`;
+    const cnt = (t, id) => `<div style="display:flex;justify-content:space-between;font-size:6.6px;color:#4A4A4A;border-bottom:1px solid #e2e6e9;padding:2px 0"><span>${t}</span><b>${pv(id) || '＿ 堂'}</b></div>`;
+    html = `${slideHead('本學期時程與堂次', '把本學期攤成時間軸，讓校方看得到節奏。')}
+      <div style="position:absolute;left:5.5%;right:5.5%;top:23%;display:flex;gap:4px;align-items:center">
+        ${box('前置共備')}<span style="color:#607D8B;font-weight:900">→</span>${box('課程進行 ・ 觀課')}<span style="color:#607D8B;font-weight:900">→</span>${box('期末回顧')}
+      </div>
+      <div style="position:absolute;left:4.5%;right:52%;top:40%;background:#F7F7F7;border-radius:5px;padding:5px 8px">
+        <p style="font-size:6.8px;font-weight:700;color:#37474F;margin-bottom:2px">本學期堂次分配（與 P4 一致）</p>
+        ${cnt('學生多元課程（廣度 90′）', 'n1')}${cnt('學生探索課程（聚焦 180′)', 'n2')}${cnt('教育者賦能（150′）', 'n3')}${cnt('師生共學工作坊（180′）', 'n4')}
+      </div>
+      <div style="position:absolute;left:50.5%;right:4.5%;top:40%" class="sl-card">
+        <h5>校方協作提醒</h5>
+        <p class="clamp4">${pvOr('s6_total', '方案與本學期總堂次')}<br>${pvOr('s6_remind', '場地、接駁、觀課教師…')}</p>
+      </div>
+      ${foot('時程對齊 115/09 起、不含寒假。', 6)}`;
+    $('previewLabel').textContent = '即時預覽｜P6 時程與堂次';
+  } else if (step === 6) {
+    const card = (t, id, ph) => `<div class="sl-card" style="text-align:center;padding-top:8px"><h5 style="justify-content:center">${t}</h5><p class="clamp4">${pvOr(id, ph)}</p></div>`;
+    html = `${slideHead('預期成果', '收束在「這學期結束，師生與校園會有什麼具體不同」。')}
+      <div style="position:absolute;left:4.5%;right:4.5%;top:23%;display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+        ${card('對學生', 's7_student', '創造力自信／安全感／表達')}
+        ${card('對教師', 's7_teacher', '內在韌性／覺察／班級經營')}
+        ${card('對校園文化', 's7_culture', '支持氛圍／團隊凝聚')}
+      </div>
+      <div style="position:absolute;left:4.5%;right:4.5%;top:66%;background:#37474F;color:#fff;border-radius:5px;padding:5px 8px;font-size:6.6px">
+        <b style="color:#F1C232">評估方式</b>　量化：${pvOr('s7_quant', '人次／完成率／參與度')}　　質性：${pvOr('s7_qual', '作品與表達／對話片段')}
+      </div>
+      ${foot('成果寫「可被看見的片段」而非口號。', 7)}`;
+    $('previewLabel').textContent = '即時預覽｜P7 預期成果';
+  }
+  el.innerHTML = html;
+}
+
+// ====== 草稿 ======
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+function refreshDraftSelect(drafts) {
+  const s = $('draftSelect');
+  s.innerHTML = '<option value="">載入草稿…</option>' + (drafts || []).map(d =>
+    `<option value="${esc(d.key)}">${esc(d.school)}｜${esc(d.semester)}（${esc(d.updatedBy || '')} ${esc((d.updatedAt || '').slice(5, 16))}）</option>`).join('');
+}
+function doSaveDraft() {
+  const d = collect();
+  if (!d.school) { toast('請先在 P1 填學校名稱'); go(0); return; }
+  if (canGs()) {
+    google.script.run.withSuccessHandler(res => {
+      toast('已儲存草稿 ✓'); refreshDraftSelect(res.drafts);
+    }).withFailureHandler(err => toast('儲存失敗：' + err.message)).saveDraft(d);
+  } else {
+    const key = d.school + '｜' + d.semester;
+    const all = JSON.parse(localStorage.getItem('xcl_drafts') || '{}');
+    all[key] = d; localStorage.setItem('xcl_drafts', JSON.stringify(all));
+    refreshDraftSelect(Object.keys(all).map(k => ({ key: k, school: all[k].school, semester: all[k].semester })));
+    toast('已存到瀏覽器（本機預覽模式）');
+  }
+}
+$('btnSaveDraft').addEventListener('click', doSaveDraft);
+$('btnSaveDraft2').addEventListener('click', doSaveDraft);
+$('draftSelect').addEventListener('change', e => {
+  const key = e.target.value;
+  if (!key) return;
+  if (canGs()) {
+    google.script.run.withSuccessHandler(res => {
+      if (res.ok) { apply(res.data); toast('已載入草稿'); go(0); }
+      else toast(res.error);
+    }).getDraft(key);
+  } else {
+    const all = JSON.parse(localStorage.getItem('xcl_drafts') || '{}');
+    if (all[key]) { apply(all[key]); toast('已載入草稿'); go(0); }
+  }
+});
+
+// ====== 產生簡報 ======
+$('btnGenerate').addEventListener('click', () => {
+  const d = collect();
+  if (!d.school) { toast('請先填學校名稱'); go(0); return; }
+  if (!canGs()) { toast('本機預覽模式無法產出，請在正式網站操作'); return; }
+  const btn = $('btnGenerate');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>產生中…（約 10–20 秒）';
+  google.script.run.withSuccessHandler(res => {
+    btn.disabled = false; btn.textContent = '產生簡報';
+    const r = $('result');
+    r.style.display = 'block';
+    r.innerHTML = `🎉 已產出 <b>${esc(res.name)}</b><br>
+      <a href="${esc(res.url)}" target="_blank" rel="noopener">開啟 Google Slides</a>　·
+      <a href="${esc(res.pptxUrl)}" target="_blank" rel="noopener">下載 PPTX</a>`;
+  }).withFailureHandler(err => {
+    btn.disabled = false; btn.textContent = '產生簡報';
+    toast('產出失敗：' + err.message);
+  }).generateDeck(d);
+});
+
+// ====== 初始化 ======
+['schoolName', 'county', 'semester', 'tagline', 'partner',
+ 's2_feature', 's2_students', 's2_venue', 's2_priority', 's2_motivation',
+ 's3_main', 's3_respond', 's3_lens', 's3_concepts', 's3_principles',
+ 's4_note', 's5_need', 's5_link', 'n1', 'n2', 'n3', 'n4', 's6_total', 's6_remind',
+ 's7_student', 's7_teacher', 's7_culture', 's7_quant', 's7_qual'].forEach(id => {
+  const el = $(id);
+  if (el) el.addEventListener('input', renderPreview);
+});
+$('schoolSelect').addEventListener('change', pickSchool);
+$('plan').addEventListener('change', () => { onPlanChange(); renderPreview(); });
+
+// 評估方式預設值（沿用模板原文，可修改）
+$('s7_quant').value = '人次／完成率／參與度（學生自評・老師觀察・講師回饋）';
+$('s7_qual').value = '作品與表達／關係改善的對話片段';
+
+function init() {
+  if (canGs()) {
+    google.script.run.withSuccessHandler(res => {
+      SCHOOLS = res.schools || [];
+      fillSchoolSelect();
+      refreshDraftSelect(res.drafts);
+    }).withFailureHandler(() => {}).getInit();
+  } else {
+    fillSchoolSelect();
+    const all = JSON.parse(localStorage.getItem('xcl_drafts') || '{}');
+    refreshDraftSelect(Object.keys(all).map(k => ({ key: k, school: all[k].school, semester: all[k].semester })));
+  }
+  onPlanChange();
+  go(0);
+}
+init();
+</script>
+</body>
+</html>
