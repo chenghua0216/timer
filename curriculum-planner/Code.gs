@@ -158,18 +158,7 @@ function setup() {
   }
   var templateId = PROPS.getProperty('TEMPLATE_ID');
   if (!templateId) {
-    // 將內嵌的佔位符母版（PPTX）轉成 Google Slides；需啟用 Drive 進階服務
-    var blob = Utilities.newBlob(
-      Utilities.base64Decode(TEMPLATE_B64),
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      '心創力課程規劃簡報．母版.pptx');
-    var file = Drive.Files.create({
-      name: '心創力課程規劃簡報．母版（請勿改動 {{佔位符}}）',
-      mimeType: 'application/vnd.google-apps.presentation',
-      parents: [folderId]
-    }, blob);
-    templateId = file.id;
-    PROPS.setProperty('TEMPLATE_ID', templateId);
+    templateId = rebuildMaster_(TEMPLATE_B64);
   }
   Logger.log('FOLDER_ID=%s\nSHEET_ID=%s\nTEMPLATE_ID=%s', folderId, sheetId, templateId);
   return { folderId: folderId, sheetId: sheetId, templateId: templateId };
@@ -178,16 +167,38 @@ function setup() {
 // 母版有更新（貼上新的 Template.gs 後）在編輯器執行一次：
 // 以新內容重建母版並更新 TEMPLATE_ID，舊母版改名封存
 function refreshTemplate() {
+  return rebuildMaster_(TEMPLATE_B64);
+}
+
+// 以指定 base64（PPTX）重建 Google Slides 母版；需啟用 Drive 進階服務
+function rebuildMaster_(b64) {
+  var folderId = PROPS.getProperty('FOLDER_ID');
+  if (!folderId) throw new Error('尚未完成初始設定，請先執行 setup()');
   var oldId = PROPS.getProperty('TEMPLATE_ID');
   if (oldId) {
     try {
       var old = DriveApp.getFileById(oldId);
       old.setName(old.getName() + '（舊版 ' +
-        Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd') + '）');
+        Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HHmm') + '）');
     } catch (e) {}
   }
-  PROPS.deleteProperty('TEMPLATE_ID');
-  return setup();
+  var blob = Utilities.newBlob(
+    Utilities.base64Decode(b64),
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '心創力課程規劃簡報．母版.pptx');
+  var file = Drive.Files.create({
+    name: '心創力課程規劃簡報．母版（請勿改動 {{佔位符}}）',
+    mimeType: 'application/vnd.google-apps.presentation',
+    parents: [folderId]
+  }, blob);
+  PROPS.setProperty('TEMPLATE_ID', file.id);
+  PROPS.setProperty('TEMPLATE_SHA', shaOf_(b64));
+  return file.id;
+}
+
+function shaOf_(s) {
+  return Utilities.base64Encode(
+    Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s));
 }
 
 // ====== 草稿（Google Sheet）======
@@ -406,4 +417,119 @@ function logGenerated_(data, file) {
   } catch (e) {
     // 紀錄失敗不影響產出
   }
+}
+
+// ====== 一鍵更新（selfUpdate）======
+// 從 GitHub 抓最新程式碼 → 更新本專案 → 母版有變則重建 → 建立新版本 → 網頁部署切到新版本
+// 一次性前置：
+//   1) 到 script.google.com/home/usersettings 開啟「Google Apps Script API」
+//   2) appsscript.json 需含 script.projects / script.deployments / script.external_request 權限
+// 之後每次更新：在編輯器執行 selfUpdate() 即可。
+// 想改抓取分支：指令碼屬性設定 SOURCE_BRANCH（例如 main）。
+// repo 若改為私有：指令碼屬性設定 GITHUB_TOKEN（fine-grained PAT，Contents: Read）。
+var GH_REPO = 'chenghua0216/timer';
+var GH_DIR = 'curriculum-planner/';
+var GH_DEFAULT_BRANCH = 'claude/curriculum-planning-interface-kft8eg';
+var SYNC_FILES = [
+  { repo: 'Code.gs', name: 'Code', type: 'SERVER_JS' },
+  { repo: 'Template.gs', name: 'Template', type: 'SERVER_JS' },
+  { repo: 'index.html', name: 'index', type: 'HTML' },
+  { repo: 'appsscript.json', name: 'appsscript', type: 'JSON' }
+];
+
+function selfUpdate() {
+  var branch = PROPS.getProperty('SOURCE_BRANCH') || GH_DEFAULT_BRANCH;
+  var log = ['來源：' + GH_REPO + ' @ ' + branch];
+
+  // 1) 下載最新檔案
+  var fetched = SYNC_FILES.map(function (f) {
+    return { name: f.name, type: f.type, source: ghFetch_(f.repo, branch) };
+  });
+
+  // 2) 母版內容有變更才重建（舊版自動封存）
+  var tpl = fetched.filter(function (f) { return f.name === 'Template'; })[0];
+  var b64 = extractB64_(tpl.source);
+  if (shaOf_(b64) !== PROPS.getProperty('TEMPLATE_SHA')) {
+    rebuildMaster_(b64);
+    log.push('母版已重建（舊版已封存）');
+  } else {
+    log.push('母版無變更');
+  }
+
+  // 3) 更新專案程式碼（保留 SYNC 清單以外、使用者自行新增的檔案）
+  var current = scriptApi_('get', '/content', null);
+  var keep = (current.files || []).filter(function (f) {
+    return !SYNC_FILES.some(function (s) { return s.name === f.name; });
+  }).map(function (f) { return { name: f.name, type: f.type, source: f.source }; });
+  scriptApi_('put', '/content', { files: fetched.concat(keep) });
+  log.push('程式碼已更新（' + fetched.length + ' 檔）');
+
+  // 4) 建立新版本，並把正式網頁部署切到新版本（@HEAD 測試部署不需要切）
+  var ver = scriptApi_('post', '/versions', {
+    description: 'selfUpdate ' + Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd HH:mm')
+  });
+  var deps = scriptApi_('get', '/deployments?pageSize=50', null);
+  var updated = 0;
+  (deps.deployments || []).forEach(function (d) {
+    var cfg = d.deploymentConfig || {};
+    var isWeb = (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; });
+    if (!isWeb || cfg.versionNumber == null) return;
+    scriptApi_('put', '/deployments/' + d.deploymentId, {
+      deploymentConfig: {
+        scriptId: ScriptApp.getScriptId(),
+        versionNumber: ver.versionNumber,
+        manifestFileName: 'appsscript',
+        description: cfg.description || ''
+      }
+    });
+    updated++;
+  });
+  log.push('已建立版本 ' + ver.versionNumber + '、更新 ' + updated + ' 個網頁部署');
+  if (!updated) {
+    log.push('（找不到正式網頁部署——若尚未部署過，請先手動「部署 → 新增部署」一次）');
+  }
+  var msg = log.join('\n');
+  Logger.log(msg);
+  return msg;
+}
+
+// 從 GitHub 下載單一檔案內容（公開 repo 免 token；私有 repo 讀 GITHUB_TOKEN 屬性）
+function ghFetch_(path, branch) {
+  var url = 'https:/' + '/api.github.com/repos/' + GH_REPO + '/contents/' +
+    GH_DIR + path + '?ref=' + encodeURIComponent(branch);
+  var headers = { Accept: 'application/vnd.github.raw+json' };
+  var token = PROPS.getProperty('GITHUB_TOKEN');
+  if (token) headers.Authorization = 'Bearer ' + token;
+  var res = UrlFetchApp.fetch(url, { headers: headers, muteHttpExceptions: true });
+  if (res.getResponseCode() !== 200) {
+    throw new Error('下載 ' + path + ' 失敗：HTTP ' + res.getResponseCode() +
+      '（repo 若為私有，請在指令碼屬性設定 GITHUB_TOKEN）');
+  }
+  return res.getContentText();
+}
+
+// 從 Template.gs 原始碼取出 base64（多段單引號字串相加的格式）
+function extractB64_(source) {
+  var m = source.match(/'[A-Za-z0-9+\/=]{50,}'/g);
+  if (!m) throw new Error('Template.gs 內容異常：找不到 base64 區塊');
+  return m.map(function (s) { return s.slice(1, -1); }).join('');
+}
+
+// 呼叫 Apps Script API 操作本專案（需啟用 Google Apps Script API）
+function scriptApi_(method, path, payload) {
+  var url = 'https:/' + '/script.googleapis.com/v1/projects/' + ScriptApp.getScriptId() + path;
+  var opt = {
+    method: method,
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+    muteHttpExceptions: true
+  };
+  if (payload) { opt.contentType = 'application/json'; opt.payload = JSON.stringify(payload); }
+  var res = UrlFetchApp.fetch(url, opt);
+  var code = res.getResponseCode();
+  if (code < 200 || code >= 300) {
+    throw new Error('Apps Script API 失敗（' + method + ' ' + path + '）：HTTP ' + code + ' ' +
+      res.getContentText().slice(0, 300) +
+      '。請確認已於 script.google.com/home/usersettings 啟用 Google Apps Script API。');
+  }
+  return JSON.parse(res.getContentText() || '{}');
 }
