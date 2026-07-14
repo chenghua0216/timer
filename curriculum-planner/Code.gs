@@ -125,15 +125,17 @@ var SCHOOLS = [
 // 因此前端（index.html）改版只要推上 GitHub 即自動生效，不必貼檔或重新部署。
 // 抓取失敗時自動退回專案內建的 index（最後一次貼上的版本）。
 // 想關閉即時模式：指令碼屬性設定 LIVE_HTML = off（改用專案內建 index）。
-var FAVICON = "data:image/svg+xml," +
-  "%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E" +
-  "%3Cpath%20d='M13%202%204%2014h6l-1%208%209-12h-6z'%20fill='%23FAA61A'%20" +
-  "stroke='%23FAA61A'%20stroke-width='1.6'%20stroke-linejoin='round'%20stroke-linecap='round'/%3E%3C/svg%3E";
+// setFaviconUrl 需要「真實網址」（不吃 data: URI），指向 repo 內的 favicon.svg。
+// GitHub raw 會以 image/svg+xml 回應，Chrome 支援 SVG favicon。
+function faviconUrl_() {
+  var branch = PROPS.getProperty('SOURCE_BRANCH') || GH_DEFAULT_BRANCH;
+  return 'https:/' + '/raw.githubusercontent.com/' + GH_REPO + '/' + branch + '/' + GH_DIR + 'favicon.svg';
+}
 
 function doGet() {
   return buildPage_()
     .setTitle('心創力．課程規劃簡報產生器')
-    .setFaviconUrl(FAVICON)
+    .setFaviconUrl(faviconUrl_())
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
