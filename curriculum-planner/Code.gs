@@ -121,10 +121,37 @@ var SCHOOLS = [
 ];
 
 // ====== Web App 入口 ======
+// 預設「即時模式」：每次載入直接抓 GitHub 上最新的 index.html 來顯示，
+// 因此前端（index.html）改版只要推上 GitHub 即自動生效，不必貼檔或重新部署。
+// 抓取失敗時自動退回專案內建的 index（最後一次貼上的版本）。
+// 想關閉即時模式：指令碼屬性設定 LIVE_HTML = off（改用專案內建 index）。
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('index')
+  return buildPage_()
     .setTitle('心創力．課程規劃簡報產生器')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function buildPage_() {
+  if (PROPS.getProperty('LIVE_HTML') === 'off') {
+    return HtmlService.createHtmlOutputFromFile('index');
+  }
+  var cache = CacheService.getScriptCache();
+  var html = cache.get('LIVE_INDEX');
+  if (!html) {
+    try {
+      html = ghFetch_('index.html', PROPS.getProperty('SOURCE_BRANCH') || GH_DEFAULT_BRANCH);
+      try { cache.put('LIVE_INDEX', html, 90); } catch (e2) {} // 過大無法快取則略過
+    } catch (e) {
+      return HtmlService.createHtmlOutputFromFile('index'); // 取得失敗→退回內建版本
+    }
+  }
+  return HtmlService.createHtmlOutput(html);
+}
+
+// 想讓最新的 index.html 立刻生效（不等 90 秒快取）時，在編輯器執行一次
+function clearHtmlCache() {
+  CacheService.getScriptCache().remove('LIVE_INDEX');
+  return '已清除快取，下次載入將抓取最新 index.html';
 }
 
 function getUrl() {
