@@ -23,12 +23,12 @@
   header .wrap { max-width: 1240px; margin: 0 auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
   header img.logo { height: 40px; width: auto; }
   header .titlebox { border-left: 3px solid var(--ui); padding-left: 12px; }
-  header h1 { font-size: 18px; font-weight: 900; letter-spacing: .04em; color: var(--dark); line-height: 1.3; }
-  header .sub { font-size: 12.5px; color: var(--grey); }
-  header .draftbar { margin-left: auto; display: flex; gap: 8px; align-items: center; font-size: 12px; }
-  header select, header button { font-size: 12px; padding: 5px 10px; border-radius: 8px; cursor: pointer; font-family: inherit; }
+  header h1 { font-size: 20px; font-weight: 900; letter-spacing: .04em; color: var(--dark); line-height: 1.3; }
+  header .sub { font-size: 13.5px; color: var(--grey); }
+  header .draftbar { margin-left: auto; display: flex; gap: 8px; align-items: center; font-size: 13px; }
+  header select, header button { font-size: 13px; padding: 5px 10px; border-radius: 8px; cursor: pointer; font-family: inherit; }
   header select { background: #f1f3f4; color: var(--ink); max-width: 220px; border: 1px solid #e0e4e7; }
-  .btn { background: var(--ui); color: #fff; font-weight: 700; border: 0; border-radius: 12px; padding: 10px 20px; cursor: pointer; font-size: 14px; font-family: inherit; transition: all .15s; }
+  .btn { background: var(--ui); color: #fff; font-weight: 700; border: 0; border-radius: 12px; padding: 10px 20px; cursor: pointer; font-size: 15px; font-family: inherit; transition: all .15s; }
   .btn:hover { filter: brightness(1.05); box-shadow: 0 2px 8px rgba(30,40,20,.12); }
   .btn:disabled { opacity: .5; cursor: default; }
   .btn.ghost { background: #fff; border: 1px solid #d9e3cc; color: var(--ui-dark); font-weight: 500; }
@@ -38,7 +38,7 @@
   main { max-width: 1240px; margin: 0 auto; padding: 16px 20px 60px; }
   /* 步驟導覽 */
   .steps { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
-  .steps button { border: 1px solid #e7eae2; background: #fff; color: #97a08f; border-radius: 999px; padding: 7px 16px; font-size: 14px; cursor: pointer; font-family: inherit; transition: all .15s; }
+  .steps button { border: 1px solid #e7eae2; background: #fff; color: #97a08f; border-radius: 999px; padding: 7px 16px; font-size: 15px; cursor: pointer; font-family: inherit; transition: all .15s; }
   .steps button:hover { border-color: var(--ui); color: var(--ui-dark); }
   .steps button.done { background: var(--ui-bg); border-color: transparent; color: var(--ui-dark); }
   .steps button.on { background: var(--ui-dark); border-color: var(--ui-dark); color: #fff; font-weight: 700; }
@@ -52,18 +52,18 @@
 
   .panel { background: #fff; border: 1px solid #edefe8; border-radius: 18px; padding: 28px 32px; box-shadow: 0 1px 3px rgba(30,40,20,.05); }
   @media (max-width: 640px) { .panel { padding: 20px; } }
-  .panel h2 { font-size: 21px; font-weight: 900; letter-spacing: .03em; margin-bottom: 4px; }
-  .panel .desc { font-size: 13px; color: var(--grey); margin-bottom: 18px; }
-  .tip { display: flex; gap: 8px; align-items: flex-start; background: #fdfaf0; border: 0; border-radius: 10px; padding: 8px 12px; font-size: 12.5px; color: #8a6d2f; margin-bottom: 16px; }
+  .panel h2 { font-size: 23px; font-weight: 900; letter-spacing: .03em; margin-bottom: 4px; }
+  .panel .desc { font-size: 14px; color: var(--grey); margin-bottom: 18px; }
+  .tip { display: flex; gap: 8px; align-items: flex-start; background: #fdfaf0; border: 0; border-radius: 10px; padding: 8px 12px; font-size: 13.5px; color: #8a6d2f; margin-bottom: 16px; }
   .tip::before { content: ''; width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px;
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23E0A400' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5'/%3E%3Cpath d='M9 18h6'/%3E%3Cpath d='M10 22h4'/%3E%3C/svg%3E") no-repeat center / contain; }
 
-  label.f { display: block; font-size: 13.5px; font-weight: 500; color: #3d4438; margin: 18px 0 6px; }
+  label.f { display: block; font-size: 14.5px; font-weight: 500; color: #3d4438; margin: 18px 0 6px; }
   label.req::after, i.req::after { content: '＊'; color: var(--ui); margin-left: 2px; font-weight: 400; font-style: normal; }
   label.f small { font-weight: 400; color: var(--grey); margin-left: 6px; }
   input[type=text], input[type=number], textarea, select.f {
     width: 100%; border: 1px solid #e5e9df; border-radius: 10px; padding: 10px 12px;
-    font-size: 14px; font-family: inherit; outline: none; background: #fff; transition: border-color .15s, box-shadow .15s;
+    font-size: 15px; font-family: inherit; outline: none; background: #fff; transition: border-color .15s, box-shadow .15s;
   }
   input:focus, textarea:focus, select.f:focus { border-color: var(--ui); box-shadow: 0 0 0 3px rgba(139,189,74,.10); }
   textarea { resize: vertical; min-height: 64px; }
@@ -71,8 +71,8 @@
   .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
   @media (max-width: 640px) { .row2, .row3 { grid-template-columns: 1fr; } }
 
-  .prefill { margin-top: 6px; font-size: 12px; }
-  .prefill button { border: 0; background: none; color: var(--ui-dark); padding: 2px 0; font-size: 12px; cursor: pointer; font-family: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #c5d8a8; }
+  .prefill { margin-top: 6px; font-size: 13px; }
+  .prefill button { border: 0; background: none; color: var(--ui-dark); padding: 2px 0; font-size: 13px; cursor: pointer; font-family: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #c5d8a8; }
   .prefill button:hover { color: #4a7030; }
 
   /* 課程列 */
@@ -80,11 +80,11 @@
   .course-row .grid { display: grid; grid-template-columns: 150px 150px 1fr 70px; gap: 8px; margin-bottom: 8px; }
   .course-row .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   @media (max-width: 700px) { .course-row .grid, .course-row .grid2 { grid-template-columns: 1fr 1fr; } }
-  .course-row input, .course-row select { font-size: 13px; padding: 6px 8px; }
-  .course-row .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; color: #6b7a63; font-weight: 700; }
-  .course-row .head button { border: 0; background: none; color: #c66; cursor: pointer; font-size: 12px; font-family: inherit; }
-  .addrow { border: 1px dashed #cfe0b8; background: #fff; color: var(--ui-dark); border-radius: 12px; padding: 10px; width: 100%; cursor: pointer; font-family: inherit; font-size: 13px; }
-  .quota { font-size: 12.5px; color: var(--sub); background: #f4f7ee; border-radius: 10px; padding: 9px 13px; margin: 12px 0; }
+  .course-row input, .course-row select { font-size: 14px; padding: 6px 8px; }
+  .course-row .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; color: #6b7a63; font-weight: 700; }
+  .course-row .head button { border: 0; background: none; color: #c66; cursor: pointer; font-size: 13px; font-family: inherit; }
+  .addrow { border: 1px dashed #cfe0b8; background: #fff; color: var(--ui-dark); border-radius: 12px; padding: 10px; width: 100%; cursor: pointer; font-family: inherit; font-size: 14px; }
+  .quota { font-size: 13.5px; color: var(--sub); background: #f4f7ee; border-radius: 10px; padding: 9px 13px; margin: 12px 0; }
   .quota b { color: var(--dark); }
   .quota .bad { color: #c0392b; font-weight: 700; }
   .quota .good { color: var(--ui-dark); font-weight: 700; }
@@ -96,7 +96,7 @@
   /* 預覽 */
   .preview-col { position: sticky; top: 64px; }
   .preview-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px; }
-  .preview-card h3 { font-size: 12px; color: var(--grey); font-weight: 700; margin-bottom: 8px; letter-spacing: .05em; }
+  .preview-card h3 { font-size: 13px; color: var(--grey); font-weight: 700; margin-bottom: 8px; letter-spacing: .05em; }
   .slide { aspect-ratio: 16 / 9; background: #fff; border: 1px solid #dfe3e6; border-radius: 6px; overflow: hidden; position: relative; font-size: 8.5px; color: var(--ink); box-shadow: 0 2px 10px rgba(0,0,0,.06); }
   .slide * { line-height: 1.45; }
   .sl-foot { position: absolute; left: 4.5%; bottom: 3.5%; display: flex; align-items: center; gap: 4px; font-size: 6.5px; color: var(--grey); }
@@ -118,14 +118,14 @@
 
   /* 檢核 */
   .checks { margin-top: 12px; }
-  .checks .item { display: flex; gap: 8px; font-size: 13px; padding: 7px 10px; border-radius: 8px; margin-bottom: 6px; align-items: flex-start; }
+  .checks .item { display: flex; gap: 8px; font-size: 14px; padding: 7px 10px; border-radius: 8px; margin-bottom: 6px; align-items: flex-start; }
   .checks .warn { background: #FDF0EC; color: #a94425; }
   .checks .pass { background: #ECF6F1; color: #21735f; }
-  .result { margin-top: 18px; padding: 24px; border-radius: 14px; background: var(--ui-bg); font-size: 14px; display: none; text-align: center; }
+  .result { margin-top: 18px; padding: 24px; border-radius: 14px; background: var(--ui-bg); font-size: 15px; display: none; text-align: center; }
   .result .btn { text-decoration: none; display: inline-block; margin: 0 4px; }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--dark); color: #fff; padding: 9px 18px; border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 50; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--dark); color: #fff; padding: 9px 18px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 50; }
   .toast.show { opacity: 1; }
   [hidden] { display: none !important; }
 </style>
@@ -146,7 +146,7 @@
     </div>
   </div>
 </header>
-<div id="errbar" hidden style="background:#c0392b;color:#fff;padding:8px 20px;font-size:13px;text-align:center"></div>
+<div id="errbar" hidden style="background:#c0392b;color:#fff;padding:8px 20px;font-size:14px;text-align:center"></div>
 
 <main>
   <div class="steps" id="stepNav"></div>
@@ -937,7 +937,7 @@ $('btnGenerate').addEventListener('click', () => {
     r.innerHTML = `
       <div style="font-size:38px;line-height:1">🎉</div>
       <p style="font-size:16px;font-weight:900;margin:8px 0 2px">${esc(res.name)}</p>
-      <p style="font-size:12.5px;color:#6b7a63;margin-bottom:16px">已存入 Drive「心創力課程規劃簡報」資料夾，可直接分享或匯出</p>
+      <p style="font-size:13.5px;color:#6b7a63;margin-bottom:16px">已存入 Drive「心創力課程規劃簡報」資料夾，可直接分享或匯出</p>
       <a class="btn" href="${esc(res.url)}" target="_blank" rel="noopener">開啟 Google Slides</a>
       <a class="btn ghost" href="${esc(res.pptxUrl)}" target="_blank" rel="noopener">下載 PPTX</a>`;
     r.scrollIntoView({ behavior: 'smooth', block: 'center' });
