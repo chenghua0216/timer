@@ -184,6 +184,7 @@ function setup() {
     folderId = DriveApp.createFolder('心創力課程規劃簡報').getId();
     PROPS.setProperty('FOLDER_ID', folderId);
   }
+  shareToDomain_(DriveApp.getFolderById(folderId)); // 整個資料夾對團隊（同網域）開放
   var sheetId = PROPS.getProperty('SHEET_ID');
   if (!sheetId) {
     var ss = SpreadsheetApp.create('心創力課程規劃．填寫紀錄');
@@ -390,6 +391,20 @@ function generateDeck(data) {
   var slidesUrl = copy.getUrl();
   var pptxUrl = 'https:/' + '/docs.google.com/presentation/d/' + copy.getId() + '/export/pptx';
   return { ok: true, url: slidesUrl, pptxUrl: pptxUrl, name: name };
+}
+
+// 手動把「心創力課程規劃簡報」資料夾（含既有產出）對團隊開放：在編輯器執行一次
+function shareFolder() {
+  var folderId = PROPS.getProperty('FOLDER_ID');
+  if (!folderId) throw new Error('尚未完成初始設定，請先執行 setup()');
+  var folder = DriveApp.getFolderById(folderId);
+  shareToDomain_(folder);
+  // 同時把資料夾內既有檔案設為同網域可編輯（過去產出、夥伴打不開的那些）
+  var n = 0, files = folder.getFiles();
+  while (files.hasNext()) { shareToDomain_(files.next()); n++; }
+  var msg = '資料夾已對團隊開放，並更新 ' + n + ' 個既有檔案的分享權限';
+  Logger.log(msg);
+  return msg;
 }
 
 // 產出的簡報預設只有部署者可開；設為同網域（theshiner.org）可編輯，
