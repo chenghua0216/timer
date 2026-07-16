@@ -309,6 +309,7 @@ function generateDeck(data) {
 
   var name = (data.school || '未命名學校') + '｜' + (data.semester || '') + ' 心創力課程規劃簡報';
   var copy = DriveApp.getFileById(templateId).makeCopy(name, folder);
+  shareToDomain_(copy); // 讓同網域夥伴不必「要求存取權」即可開啟／編輯
   var pres = SlidesApp.openById(copy.getId());
   var slides = pres.getSlides();
 
@@ -389,6 +390,20 @@ function generateDeck(data) {
   var slidesUrl = copy.getUrl();
   var pptxUrl = 'https:/' + '/docs.google.com/presentation/d/' + copy.getId() + '/export/pptx';
   return { ok: true, url: slidesUrl, pptxUrl: pptxUrl, name: name };
+}
+
+// 產出的簡報預設只有部署者可開；設為同網域（theshiner.org）可編輯，
+// 夥伴點連結即可開啟／協作，不會被要求「要求存取權」。
+// 網域分享失敗（如個人帳號）時，退回把目前使用者加為編輯者。
+function shareToDomain_(file) {
+  try {
+    file.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.EDIT);
+  } catch (e) {
+    try {
+      var email = Session.getActiveUser().getEmail();
+      if (email) file.addEditor(email);
+    } catch (e2) {}
+  }
 }
 
 // 表格列數不足 3 列時，把留在版面上的佔位符清成「—」
